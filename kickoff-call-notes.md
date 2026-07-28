@@ -26,7 +26,7 @@
 
 ## 2. Walkthrough of Sample Use Cases
 
-> **Reality to set up front:** we are **not connected to the org yet**, so the semantic layer (`reference/dataModel.yaml`) is intentionally **unpopulated / all `VERIFY` placeholders**. The *method* is built end-to-end; the *data* gets filled in during Phase 0. This call is what unlocks that. Until we connect, we can't promise any specific use case is demoable — we won't know which fields exist until the model is populated from the live org.
+> **Reality to set up front:** we are **not connected to the org yet**, so the semantic layer (`skill/d360-segments-activations/reference/dataModel.yaml`) is intentionally **unpopulated / all `VERIFY` placeholders**. The *method* is built end-to-end; the *data* gets filled in during Phase 0. This call is what unlocks that. Until we connect, we can't promise any specific use case is demoable — we won't know which fields exist until the model is populated from the live org.
 
 **Use-case → data-model readiness map:**
 

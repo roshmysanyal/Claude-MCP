@@ -30,7 +30,7 @@ the boundary.
   flip in [dataModel.yaml](dataModel.yaml).)
 - **Runtime — constrained.** Claude reads only the locked semantic layer; it does not go exploring
   the org. How much latitude it has is set by the **discovery-mode toggle** in
-  [../skill/d360-segments-activations/SKILL.md](../skill/d360-segments-activations/SKILL.md) (`strict` = locked model
+  [SKILL.md](../SKILL.md) (`strict` = locked model
   only; `propose` = may draft `VERIFY` proposals for a human to confirm).
 
 So: the tool proposes, the human disposes, and runtime stays inside the human-locked boundary.

@@ -13,13 +13,13 @@ for the schema:
 |---|---|
 | **this file** (`feedback/session-log.md`) | *Notebook* — raw, per-session friction captured as it happens. Noisy on purpose. |
 | [feedback/improvement-backlog.md](improvement-backlog.md) | *Triage surface* — the owner clusters recurring signals into concrete, decided skill changes. |
-| [skill/…/SKILL.md](../skill/d360-segments-activations/SKILL.md) + [reference/dataModel.yaml](../reference/dataModel.yaml) | *The governed skill* — the only thing that changes agent behavior. Changed **only** by the owner, via the git loop. |
+| [SKILL.md](../SKILL.md) + [reference/dataModel.yaml](../reference/dataModel.yaml) | *The governed skill* — the only thing that changes agent behavior. Changed **only** by the owner, via the git loop. |
 
 ---
 
 ## The boundary that matters (why this exists)
 
-The whole point of [scaling-via-repo.md](../scaling-via-repo.md) is **one canonical skill, no
+The whole point of [scaling-via-repo.md](../../../scaling-via-repo.md) is **one canonical skill, no
 per-machine forks.** Session logging must not undermine that:
 
 | Capture surface (may be local / per-user, then collected) | The governed skill (one canonical copy, owner-only) |

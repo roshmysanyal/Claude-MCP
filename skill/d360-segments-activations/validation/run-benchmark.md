@@ -20,7 +20,7 @@ snowsql \
   --warehouse <WAREHOUSE> \
   --dbname <DATABASE> \
   --schemaname <SCHEMA> \
-  -f validation/ocl-benchmark.sql \
+  -f skill/d360-segments-activations/validation/ocl-benchmark.sql \
   -o output_format=csv \
   -o timing=true
 ```
@@ -38,7 +38,7 @@ conn = snowflake.connector.connect(
     account="<ACCOUNT>", user="<USER>", password="<PASSWORD>",  # or key-pair / SSO
     warehouse="<WAREHOUSE>", database="<DATABASE>", schema="<SCHEMA>",
 )
-with conn.cursor() as cur, open("validation/ocl-benchmark.sql") as f:
+with conn.cursor() as cur, open("skill/d360-segments-activations/validation/ocl-benchmark.sql") as f:
     for stmt in [s for s in f.read().split(";") if s.strip()]:
         cur.execute(stmt)
     count, snapshot_ts = cur.fetchone()

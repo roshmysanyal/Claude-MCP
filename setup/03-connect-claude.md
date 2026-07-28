@@ -103,6 +103,12 @@ follows the POC's authorized scope, semantic-layer mapping, and OCL/Snowflake-va
 - **Claude Code:** `.claude/skills/d360-segments-activations/` (project) or `~/.claude/skills/d360-segments-activations/` (user)
 - **Claude Desktop:** the skills location for your install
 
+> **The skill folder is self-contained.** It bundles its own `reference/`, `validation/`, and
+> `feedback/` subfolders, and every link in `SKILL.md` is relative to the folder — so copying (or
+> publishing) *just this one folder* is all that's needed, and the links resolve identically whether
+> it's in the repo checkout or deployed standalone (e.g. pushed org-wide by an enterprise admin). The
+> git repo stays the single source of truth; see [../scaling-via-repo.md](../scaling-via-repo.md).
+
 Have the **governance owner review and approve** `SKILL.md` before use — it is the version-controlled
 data-access contract.
 

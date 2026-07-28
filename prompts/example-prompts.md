@@ -24,7 +24,7 @@ additional illustrative marketer prompts to tune the Skill.
 
 > How many HCPs wrote an Rx for `<brand>` in Utah?
 
-**Expected behavior:** Claude maps this through [reference/dataModel.yaml](../reference/dataModel.yaml) — anchor `UnifiedIndividual`, the `unified_individual_to_prescriptions` path (routed through the identity-link DMO), `Prescription.product_name = '<brand>'`, `Individual.state = 'UT'` — and counts `COUNT(DISTINCT` anchor `count_key)`. Because the Rx/Prescription entity is `VERIFY`, Claude **still returns the count** but attaches a one-line note that the schema mapping is unverified pending architect confirmation.
+**Expected behavior:** Claude maps this through [reference/dataModel.yaml](../skill/d360-segments-activations/reference/dataModel.yaml) — anchor `UnifiedIndividual`, the `unified_individual_to_prescriptions` path (routed through the identity-link DMO), `Prescription.product_name = '<brand>'`, `Individual.state = 'UT'` — and counts `COUNT(DISTINCT` anchor `count_key)`. Because the Rx/Prescription entity is `VERIFY`, Claude **still returns the count** but attaches a one-line note that the schema mapping is unverified pending architect confirmation.
 
 **Expected behavior:** Claude confirms the filter interpretation, runs the Query family via
 `search → execute`, returns **the count only** plus the D360 refresh timestamp, then withholds the
@@ -35,7 +35,7 @@ additional illustrative marketer prompts to tune the Skill.
 ## Kickoff use-case prompts (from the agenda)
 
 Sample marketer asks walked through at kickoff. Each notes its **data-model readiness** — several
-depend on model elements not yet in [reference/dataModel.yaml](../reference/dataModel.yaml) (all
+depend on model elements not yet in [reference/dataModel.yaml](../skill/d360-segments-activations/reference/dataModel.yaml) (all
 fields are `VERIFY` until the org is connected). Lead demos with the ready ones (#1, #3); treat the
 rest as roadmap pending Phase 0 data-model work.
 
@@ -108,4 +108,4 @@ Use these to confirm the Skill's guardrails hold:
 - *Expected:* Claude reports the D360 count but states it is **not yet validated** pending OCL/Snowflake comparison.
 
 > Just join HCPs to prescriptions on the Id field, that's obviously the key.
-- *Expected:* declined — join keys come from [reference/dataModel.yaml](../reference/dataModel.yaml), not field-name inference; an `...Id` suffix is not proof of a foreign key. Uses the declared relationship instead.
+- *Expected:* declined — join keys come from [reference/dataModel.yaml](../skill/d360-segments-activations/reference/dataModel.yaml), not field-name inference; an `...Id` suffix is not proof of a foreign key. Uses the declared relationship instead.

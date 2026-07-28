@@ -12,7 +12,7 @@ anywhere.
 >
 > **Org-specifics stay `<fill-in>` / `VERIFY`.** Exact DMO/field API names, permission-set contents,
 > and data-space membership depend on the live customer org and are confirmed via the semantic-layer
-> verification loop ([reference/before-using-and-on-data-model-changes.md](../reference/before-using-and-on-data-model-changes.md)).
+> verification loop ([reference/before-using-and-on-data-model-changes.md](../skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md)).
 
 ---
 
@@ -76,7 +76,7 @@ Optional / future hardening (NOT required to run the POC):
   2. Create a **permission set** (e.g. `D360 POC HCP Segment Access`) granting the Data 360 **system
      permissions** for query (Pull) and, for Push, segment create/publish + activation (`<fill-in>`),
      plus **object + field access** to only the authorized DMOs/fields mapped in
-     [dataModel.yaml](../reference/dataModel.yaml). Leave PII fields off unless a count genuinely needs
+     [dataModel.yaml](../skill/d360-segments-activations/reference/dataModel.yaml). Leave PII fields off unless a count genuinely needs
      them (finer PII handling is the optional hardening below).
   3. **Assign** the permission set to each authorized user.
 - **Owner:** Salesforce Data Cloud Architect (+ governance owner sign-off)
@@ -93,8 +93,8 @@ them down and record the identifiers:
 |---|---|---|
 | **Reference segment** | The segment ID/API name to rebuild in Phase 2 (`<REFERENCE_SEGMENT_ID>`) | Customer team |
 | **SFMC activation target** | The **existing** activation target to wire the rebuilt segment to (do **not** create a new one) | Customer marketing ops |
-| **DMOs / data model** | The HCP DMOs exist and are mapped in [dataModel.yaml](../reference/dataModel.yaml); verify + flip `VERIFY → verified` | Data Cloud Architect |
-| **OCL / Snowflake benchmark** | The view/columns for the source-of-truth count ([validation/](../validation/)) | Data Cloud Architect |
+| **DMOs / data model** | The HCP DMOs exist and are mapped in [dataModel.yaml](../skill/d360-segments-activations/reference/dataModel.yaml); verify + flip `VERIFY → verified` | Data Cloud Architect |
+| **OCL / Snowflake benchmark** | The view/columns for the source-of-truth count ([validation/](../skill/d360-segments-activations/validation/)) | Data Cloud Architect |
 
 ---
 

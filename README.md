@@ -40,7 +40,7 @@ Pre-development checklist. Fill in owners/values before kickoff.
 - [ ] Hosted **Data 360 MCP server activated** in Setup + **External Client App** created (or interim `sf` CLI path chosen) — see [setup/](setup/)
 - [ ] Claude environment = **AWS Bedrock-hosted** confirmed (not claude.ai)
 - [ ] Reference segment identified — segment ID/name: `__________` (owner: Customer team)
-- [ ] OCL/Snowflake benchmark query locked — see [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql) (owner: Data Cloud Architect)
+- [ ] OCL/Snowflake benchmark query locked — see [validation/ocl-benchmark.sql](skill/d360-segments-activations/validation/ocl-benchmark.sql) (owner: Data Cloud Architect)
 - [ ] Success-criteria threshold agreed — exact match or `__%` delta (target 2–5%)
 - [ ] Named **governance owner** confirmed: `__________` (owner: Customer IT)
 - [ ] HCP/PII compliance posture for MCP data transit confirmed (owner: Customer Compliance)
@@ -56,7 +56,7 @@ Pre-development checklist. Fill in owners/values before kickoff.
 4. **Connect your client (Cursor / Claude on Bedrock)** → [setup/03-connect-claude.md](setup/03-connect-claude.md)
 5. **Install the governed Skill** → copy [skill/d360-segments-activations/](skill/d360-segments-activations/) into your Claude skills directory; have the governance owner review it.
 6. **Confirm connectivity:** in Claude, ask it to run the MCP `search` tool for `"segment"` and `"query"` — you should get back Data 360 operation names. This proves the server is wired up.
-7. **Verify the semantic layer** → confirm the DMO/field/join model [reference/dataModel.yaml](reference/dataModel.yaml) against the live org and flip every `VERIFY` to `verified`, per [reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
+7. **Verify the semantic layer** → confirm the DMO/field/join model [reference/dataModel.yaml](skill/d360-segments-activations/reference/dataModel.yaml) against the live org and flip every `VERIFY` to `verified`, per [reference/before-using-and-on-data-model-changes.md](skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
 8. **Lock the reference segment, the OCL/Snowflake query, the success threshold, and the governance owner** (checklist above).
 
 > **Track progress** against these phases in [milestones.md](milestones.md).
@@ -74,8 +74,8 @@ Goal: prove Claude can return a Data 360 count from plain English, and that it m
    > *"How many opted-in `<brand>` HCPs in New York visited the customer website in the last 60 days?"*
 3. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns **the count only**.
 4. **Capture the D360 data-stream last-refresh timestamp** (the Skill will report it; if not, pull from the org).
-5. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](validation/run-benchmark.md) using [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
-6. **Compare** → [validation/compare-counts.md](validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
+5. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](skill/d360-segments-activations/validation/run-benchmark.md) using [validation/ocl-benchmark.sql](skill/d360-segments-activations/validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
+6. **Compare** → [validation/compare-counts.md](skill/d360-segments-activations/validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
 7. Iterate the query logic until counts match (or document why they can't).
 
 **Exit gate:** Pull count within threshold of OCL/Snowflake, with matched refresh windows, documented.
@@ -141,6 +141,6 @@ customer-d360-poc/
 
 ### Open items to fill before running against production
 - Exact OCL/Snowflake view / Snowflake query name → **Salesforce Data Cloud Architect**
-- Semantic-layer verification: confirm every `VERIFY` DMO/field/join in [reference/dataModel.yaml](reference/dataModel.yaml) → **Salesforce Data Cloud Architect**
+- Semantic-layer verification: confirm every `VERIFY` DMO/field/join in [reference/dataModel.yaml](skill/d360-segments-activations/reference/dataModel.yaml) → **Salesforce Data Cloud Architect**
 - Reference segment ID → **Customer team**
 - Named governance owner + authorized users → **Customer IT**

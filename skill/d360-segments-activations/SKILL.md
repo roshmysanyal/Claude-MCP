@@ -17,6 +17,16 @@ is the **version-controlled data-access contract** for the customer POC. Follow 
 > **This file is a governance artifact.** It is reviewed and approved by the named governance owner
 > before deployment. Any change to the validation contract or tool scope requires re-review.
 
+> **Distribution — this folder is the shippable unit.** The Skill is **self-contained**: `SKILL.md`
+> plus its own `reference/`, `validation/`, and `feedback/` subfolders. Every link below is **relative
+> to this folder**, so the Skill resolves identically whether it's checked out in the full repo or
+> deployed standalone (e.g. published org-wide by the enterprise). The **git repo is the single source
+> of truth** — the enterprise publishes this folder as-is (see
+> [../../scaling-via-repo.md](../../scaling-via-repo.md)); nobody hand-edits a deployed copy.
+>
+> **Contract version:** the released version is the git tag/commit this folder was published from.
+> When asked, report the version you loaded so any answer is auditable to a specific released contract.
+
 ---
 
 ## Working scope
@@ -28,7 +38,7 @@ entity model and operations below — no brand allowlist.
 - **Fields (illustrative — confirm exact API names with the Data Cloud Architect):**
   opt-in / consent status, state/region, brand affiliation, website-visit / web-engagement events + timestamps.
 - **Operations:** read/count (Query family), read/describe segments, create + publish segments (Segment family), create + trigger activation to the SFMC target (Activation family).
-- **DMOs/fields/joins:** never guess them from field names. Map every request through the semantic layer [../../reference/dataModel.yaml](../../reference/dataModel.yaml) — see [../../reference/using-the-data-model.md](../../reference/using-the-data-model.md). An `...Id` suffix does **not** imply a join key in the SSOT model.
+- **DMOs/fields/joins:** never guess them from field names. Map every request through the semantic layer [reference/dataModel.yaml](reference/dataModel.yaml) — see [reference/using-the-data-model.md](reference/using-the-data-model.md). An `...Id` suffix does **not** imply a join key in the SSOT model.
 - **Still off-limits:** deleting production segments; **any use of Einstein segment counts**. Confirm the exact field API names and reference segment ID with the Data Cloud Architect before running against production. Placeholders below are marked `<...>`.
 
 ---
@@ -41,7 +51,7 @@ semantic layer at runtime. Discovery/retrieval is an **authoring-time** accelera
 locked artifact.
 
 - **`strict`** (default for locked POC / production): use **only** the `verified` DMOs/fields/joins in
-  [../../reference/dataModel.yaml](../../reference/dataModel.yaml). Do **not** run metadata/discovery
+  [reference/dataModel.yaml](reference/dataModel.yaml). Do **not** run metadata/discovery
   ops at runtime. If a request needs a concept that isn't in the locked model, **stop and ask a human
   to add it** (authoring time) — do not look it up live. This is the requirements doc's
   *"constrained, not discoverable."*
@@ -56,7 +66,7 @@ locked artifact.
 ## Self-improvement logging (governance toggle)
 
 Set by the skill owner, like Discovery mode. As you run, **capture friction** to
-[../../feedback/session-log.md](../../feedback/session-log.md) whenever, in a session:
+[feedback/session-log.md](feedback/session-log.md) whenever, in a session:
 
 - the user had to clarify, rephrase, or correct your interpretation **more than once**,
 - a step **failed** (tool error, wrong operation name, rejected segment SQL, bad join),
@@ -76,7 +86,7 @@ skill owner's git loop.
   every machine.
 - **`self-tune`** (Phase 0 build / POC hardening only): you may **additionally** propose concrete
   edits to the governed files — but only via the author → PR → owner-review → merge loop into the
-  shared repo, tracked in [../../feedback/improvement-backlog.md](../../feedback/improvement-backlog.md).
+  shared repo, tracked in [feedback/improvement-backlog.md](feedback/improvement-backlog.md).
   Never as silent local memory or a per-machine copy.
 
 **Current mode:** `<log-only | self-tune>` — set by the skill owner before deployment.
@@ -88,7 +98,7 @@ skill owner's git loop.
 - **Count source of truth = OCL/Snowflake.** Einstein Segment Creation is explicitly ruled out — its counts do not match OCL/Snowflake. Never present an Einstein-derived count as validated.
 - **A Data 360 count is not "validated" until compared to the OCL/Snowflake benchmark** within the agreed 2–5% threshold **and** in the same refresh window. See the validation harness.
 - **Governance gate:** do not create/publish/activate against production data unless the governance owner has signed off (the human running you confirms this).
-- **Semantic layer = how you know the schema.** DMOs, fields (with types + PII flags), join keys, cardinality, and reusable join paths live in [../../reference/dataModel.yaml](../../reference/dataModel.yaml). It is verified against the org before Phase 1 and re-verified on data-model changes ([../../reference/before-using-and-on-data-model-changes.md](../../reference/before-using-and-on-data-model-changes.md)). Trust its `verified` elements; for `VERIFY` elements, still answer but note the mapping is unverified.
+- **Semantic layer = how you know the schema.** DMOs, fields (with types + PII flags), join keys, cardinality, and reusable join paths live in [reference/dataModel.yaml](reference/dataModel.yaml). It is verified against the org before Phase 1 and re-verified on data-model changes ([reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md)). Trust its `verified` elements; for `VERIFY` elements, still answer but note the mapping is unverified.
 
 ---
 
@@ -112,16 +122,16 @@ user if ambiguous.
 
 1. Restate the request as explicit filter criteria and **confirm the interpretation** with the user before querying (brand, state, opt-in status, engagement window). Example intent:
    *opted-in + brand = `<brand>` + state = NY + website visit within last 60 days.*
-2. **Map the request through the semantic layer** [../../reference/dataModel.yaml](../../reference/dataModel.yaml): pick the anchor, map each concept to its real DMO/field, choose the connecting `path` (routing unified↔source through the identity-link DMO), and note the `count_key`. Do not invent DMOs, fields, or join keys. If a concept isn't in the model, behavior depends on the **Discovery mode** toggle above: in `propose` mode, **discover-and-propose, don't guess-and-proceed** — run a read-only metadata op to find the real DMO/field, add it to `dataModel.yaml` as a `VERIFY` entry (a proposal for the architect to verify); in `strict` mode, **do not look it up live — stop and ask a human to add it** to the locked model. If any mapped element is still `VERIFY`, **still answer** — just attach a one-line note that the schema mapping is unverified pending architect confirmation. See [../../reference/before-using-and-on-data-model-changes.md](../../reference/before-using-and-on-data-model-changes.md) for the verification + sharing loop.
+2. **Map the request through the semantic layer** [reference/dataModel.yaml](reference/dataModel.yaml): pick the anchor, map each concept to its real DMO/field, choose the connecting `path` (routing unified↔source through the identity-link DMO), and note the `count_key`. Do not invent DMOs, fields, or join keys. If a concept isn't in the model, behavior depends on the **Discovery mode** toggle above: in `propose` mode, **discover-and-propose, don't guess-and-proceed** — run a read-only metadata op to find the real DMO/field, add it to `dataModel.yaml` as a `VERIFY` entry (a proposal for the architect to verify); in `strict` mode, **do not look it up live — stop and ask a human to add it** to the locked model. If any mapped element is still `VERIFY`, **still answer** — just attach a one-line note that the schema mapping is unverified pending architect confirmation. See [reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) for the verification + sharing loop.
 3. `search` the **Query** family for a SQL/QueryV2 count operation.
 4. Build a `COUNT(DISTINCT <anchor count_key>)` query using the mapped joins and confirmed filters (DISTINCT on the anchor so 1:N fan-out never inflates the number). Return **the count only** — do not dump PII rows.
 5. `execute` and capture: **the count** and the **Data 360 data-stream last-refresh timestamp** (query it if not returned).
-6. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty**:
+6. **Record what you observed** in [reference/observed-values.md](reference/observed-values.md), and **profile on empty**:
    - **If the count comes back 0 / empty**, don't stop at "0". **Profile the DMO** that filtered it out. The GA facade has **no dedicated data-profiler** — `d360_profile_query`/`d360_profile_metadata` are the *Profile query API* (they query/describe the unified profile DMOs), not a column-statistics tool. So profiling means **writing aggregation SQL through the Query SQL op** (`d360_query_sql`): per-column populated count + percent (the fill-rate expression below), cardinality (`COUNT(DISTINCT …)`), and — for non-PII, low-cardinality categorical fields — the value breakdown (`GROUP BY`). **You enforce PII-safety** — for `pii:true` fields query **fill-rate only, never the literals**. Use the result to tell the user *what values ARE present* and to distinguish "zero matches" from "the field isn't populated at all."
    - Append what you learned to the observed-values notebook: non-PII categorical values (with counts, `org` + date), PII fields as **fill-rate only**, and any empty asks under *Asked but unavailable*. It's a hint cache, not the governed schema.
    - Fill-rate SQL (null-and-empty-safe — in Data Cloud unpopulated text is often `''`, not NULL, so `IS NOT NULL` alone over-reports): `SUM(CASE WHEN "fld" IS NOT NULL AND CAST("fld" AS VARCHAR) <> '' THEN 1 ELSE 0 END)`. Still never surface PII values.
-7. **Do not call the number "validated" yet.** Instruct the user (or perform, if you have access) to run the OCL/Snowflake benchmark: [../../validation/run-benchmark.md](../../validation/run-benchmark.md).
-8. Compare per [../../validation/compare-counts.md](../../validation/compare-counts.md). Report:
+7. **Do not call the number "validated" yet.** Instruct the user (or perform, if you have access) to run the OCL/Snowflake benchmark: [validation/run-benchmark.md](validation/run-benchmark.md).
+8. Compare per [validation/compare-counts.md](validation/compare-counts.md). Report:
    - D360 count + refresh timestamp
    - OCL/Snowflake count + snapshot timestamp
    - delta % and whether it is within threshold and same refresh window
@@ -157,7 +167,7 @@ There are two entry points; they converge on the same build-and-activate core.
 ### Then — for either entry point (build → publish → validate → activate)
 
 3. **Translate the criteria into segment `sql`** per
-   [../../reference/creating-segments.md](../../reference/creating-segments.md): `search` for
+   [reference/creating-segments.md](reference/creating-segments.md): `search` for
    create-segment, `payload_examples` for the payload, then build SQL that **returns the membership**
    — project the **SegmentOn PK** *(plus its **key qualifier** if the PK has one — source DMOs like
    `ssot__Individual__dlm` require projecting `KQ_Id__c` alongside `ssot__Id__c`)*. **No
@@ -186,7 +196,7 @@ different: a segment's inclusion criteria must **return the list of SegmentOn pr
 membership), not a count. If `SegmentOn = UnifiedIndividual`, the SQL returns a list of
 `UnifiedRecordId__c` — never `COUNT(DISTINCT …)`, which Data 360 will reject.
 
-**Build every segment `sql` per [../../reference/creating-segments.md](../../reference/creating-segments.md)** —
+**Build every segment `sql` per [reference/creating-segments.md](reference/creating-segments.md)** —
 the authoritative reference for the validation rules (project the SegmentOn profile PK — **plus its
 key qualifier if the PK has one**; no aggregation/`DISTINCT`/`SELECT *`/`CASE`/aliases;
 fully-qualified columns; joins only on declared relationship keys; subqueries only in `WHERE`, one
@@ -203,7 +213,7 @@ The people using this Skill are **marketers**, not data engineers. Raw DMO API n
 answer into business language; keep the technical form for execution and for anyone who asks.**
 
 - **Use business labels, not API names.** Refer to entities and fields by their `label` in
-  [../../reference/dataModel.yaml](../../reference/dataModel.yaml) (e.g. *HCP*, not
+  [reference/dataModel.yaml](reference/dataModel.yaml) (e.g. *HCP*, not
   `ssot__Individual__dlm`; *Salutation*, not `ssot__Salutation__c`). The labels are governed in
   the locked semantic layer, so this works in `strict` mode without a live metadata call.
 - **State counts in plain language.** "**1 HCP** matches" — never `COUNT(DISTINCT ssot__Id__c) = 1`.
@@ -223,11 +233,11 @@ answer into business language; keep the technical form for execution and for any
 - **Einstein is out.** If asked to use Einstein counts for speed, decline and explain it invalidates the POC.
 - **Refresh-timing gate.** Always capture and report both timestamps; never compare across different refresh windows.
 - **No unbounded reads.** Return counts and definitions, not raw HCP/PII rows.
-- **Segment SQL ≠ count SQL.** A segment's inclusion criteria return the **list of SegmentOn PKs** (the membership), not a number: project the **SegmentOn profile PK** (**plus its key qualifier if the PK has one** — e.g. `ssot__Individual__dlm` requires `KQ_Id__c` alongside `ssot__Id__c`) — no aggregation, no `DISTINCT`, no `SELECT *`, no aliases, no `CASE`; fully-qualified columns; joins only on declared relationship keys; subqueries only in `WHERE` (one column). Never submit a `COUNT(DISTINCT …)` query as a segment. See [../../reference/creating-segments.md](../../reference/creating-segments.md).
-- **Never guess the schema.** DMOs, fields, and join keys come from [../../reference/dataModel.yaml](../../reference/dataModel.yaml) — not from field-name inference. Count people with `COUNT(DISTINCT` anchor `count_key)`. A count built on a `VERIFY` element is still returned — just note the mapping is unverified pending architect confirmation.
+- **Segment SQL ≠ count SQL.** A segment's inclusion criteria return the **list of SegmentOn PKs** (the membership), not a number: project the **SegmentOn profile PK** (**plus its key qualifier if the PK has one** — e.g. `ssot__Individual__dlm` requires `KQ_Id__c` alongside `ssot__Id__c`) — no aggregation, no `DISTINCT`, no `SELECT *`, no aliases, no `CASE`; fully-qualified columns; joins only on declared relationship keys; subqueries only in `WHERE` (one column). Never submit a `COUNT(DISTINCT …)` query as a segment. See [reference/creating-segments.md](reference/creating-segments.md).
+- **Never guess the schema.** DMOs, fields, and join keys come from [reference/dataModel.yaml](reference/dataModel.yaml) — not from field-name inference. Count people with `COUNT(DISTINCT` anchor `count_key)`. A count built on a `VERIFY` element is still returned — just note the mapping is unverified pending architect confirmation.
 - **Stay in the entity model.** Only the authorized HCP objects/fields and the listed operations, regardless of brand.
 - **Respect Discovery mode.** In `strict` mode, never run runtime metadata/discovery ops — use only the locked, `verified` model; ask a human to add anything missing. Runtime discovery is allowed only in `propose` mode, and only as a `VERIFY` proposal.
-- **Log friction, don't fork the skill.** Capture clarifications/failures/gaps/workarounds to [../../feedback/session-log.md](../../feedback/session-log.md) per the *Self-improvement logging* toggle (no PII/data literals). In `log-only` (production default) never edit the governed skill yourself — improvements ship only via the owner's one-canonical-copy git loop.
+- **Log friction, don't fork the skill.** Capture clarifications/failures/gaps/workarounds to [feedback/session-log.md](feedback/session-log.md) per the *Self-improvement logging* toggle (no PII/data literals). In `log-only` (production default) never edit the governed skill yourself — improvements ship only via the owner's one-canonical-copy git loop.
 - **Governance sign-off** required before any production write (create/publish/activate).
 - **Confirm before mutating.** Always show the user what you will create/publish/activate and get a go-ahead before `execute` on a write operation.
 - **Prefer the MCP path.** If the MCP server is unavailable, the same recipes may run via `sf` CLI (`sf data ...` / `sf api request rest ...`, `--allow-non-ga-tools` for Developer Preview ops) — the scope, validation, and guardrails are unchanged.
@@ -240,7 +250,7 @@ User: *"How many opted-in `<brand>` HCPs in New York visited the customer websit
 
 You:
 1. Confirm filters (opt-in = true, brand = `<brand>`, state = NY, web visit ≤ 60 days).
-2. Map through [../../reference/dataModel.yaml](../../reference/dataModel.yaml) (anchor, path, fields).
+2. Map through [reference/dataModel.yaml](reference/dataModel.yaml) (anchor, path, fields).
 3. `search "query sql count"` → get the Query op name.
 4. `execute` a `COUNT(DISTINCT ...)` query → e.g. `12,431` (D360 refresh: `<ts>`).
 5. Prompt/run the OCL/Snowflake benchmark → `12,290` (snapshot: `<ts>`).
@@ -254,7 +264,7 @@ You:
 7. Reuse the **same mapping/filters** from the count (don't re-interpret). Confirm the population.
 8. `search "create segment"` → `payload_examples` → translate those filters into segment `sql` that
    projects the SegmentOn PK (plus its key qualifier if present), **no `DISTINCT`** — per
-   [../../reference/creating-segments.md](../../reference/creating-segments.md).
+   [reference/creating-segments.md](reference/creating-segments.md).
 9. Confirm the definition with the user → `execute` create → `execute` publish.
 10. Pull the segment's member count and confirm it matches the ~12.4K from the count; then activate to
     the existing SFMC target and confirm receipt.
