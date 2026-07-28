@@ -1,0 +1,507 @@
+# =============================================================================
+# Data 360 Data Model (semantic layer for NL -> SQL segment building)
+# =============================================================================
+# PURPOSE
+#   Single source of truth for the Data 360 data model as the agent should use it:
+#     (a) FIELD METADATA  — the real DMO + field API names, data types, PII flags,
+#         and what each field means in business terms (the "which field do I
+#         filter on?" answer).
+#     (b) RELATIONSHIPS    — the declared join graph: edges, join keys, cardinality,
+#         and reusable multi-hop paths (the "how do I join them?" answer).
+#
+#   The agent must build queries from THIS FILE, not by inferring from field names.
+#   In the SSOT model an "...Id" suffix does NOT imply a foreign key, and real
+#   relationships are frequently on fields that carry no "Id" at all. Guessing
+#   from names produces confident-but-wrong joins and silent double-counting.
+#
+# HOW IT'S POPULATED / VERIFIED
+#   - Field-level facts (dmo, api_name, type, primary_key) can be SEEDED and
+#     CONFIRMED from the org via the MCP Query family's metadata query (list DMOs
+#     + describe fields). This half is machine-verifiable.
+#   - Relationships, cardinality, identity-resolution routing, count semantics,
+#     PII flags, and business descriptions are HUMAN-CURATED and architect-verified.
+#     The metadata API does not reliably emit these.
+#   See:  using-the-data-model.md            (how the agent uses this file)
+#         before-using-and-on-data-model-changes.md  (how to verify / maintain it)
+#
+# IDENTITY RESOLUTION RULE (important)
+#   You CANNOT join the unified profile directly to a source individual. You must
+#   traverse the identity link DMO:
+#       UnifiedIndividual.UnifiedRecordId__c
+#           = IdentityLink.UnifiedRecordId__c
+#       IdentityLink.SourceRecordId__c
+#           = Individual.ssot__Id__c
+#
+# STATUS LEGEND (per entity / field / relationship)
+#   verified   -> confirmed against the live org (metadata query and/or SME)
+#   VERIFY     -> placeholder; confirm the DMO/field/type/cardinality before trusting
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql          # Data 360 Query API v2 dialect
+  anchor: UnifiedIndividual    # default "people" entity for counts
+  # Counting rule: a person = one distinct anchor count_key, regardless of how
+  # many child rows (Rx, engagements, accounts) they fan out to.
+
+# -----------------------------------------------------------------------------
+# ENTITIES  (nodes)  — DMO + field metadata
+# -----------------------------------------------------------------------------
+# Per entity:  dmo, label, status, desc, grain, count_key/primary_key
+# Per field:   api_name (real column), label, type, status, pii (bool), desc, sampleValues?
+#              -> `type` and `api_name` are metadata-query verifiable
+#              -> `desc` and `pii` are human-curated context
+#              -> `label` = the business-friendly display name shown to MARKETERS. This is
+#                 the presentation layer: user-facing output uses `label` (e.g. "HCP",
+#                 "Salutation"), NEVER the raw `dmo`/`api_name` or SQL. Because it lives in
+#                 this locked artifact, it works in `strict` mode with no live metadata call.
+#                 (Seeded from the org's DMO/field labels; human-curated for marketer clarity.)
+#              -> `desc` is STRUCTURED semantics the agent reads (not a comment);
+#                 `#` comments are dividers / maintainer notes for humans only.
+#              -> `sampleValues` = a few illustrative literals so the agent can map
+#                 user phrasing to the real stored value ("Utah" -> 'UT'). ONLY on
+#                 low-cardinality categorical/coded fields. NEVER on PII, free-text,
+#                 timestamps, or ID/join keys. Illustrative + VERIFY, NOT the full domain.
+# -----------------------------------------------------------------------------
+entities:
+
+  # ---- Unified/resolved profile --------------------------------------------
+  UnifiedIndividual:
+    dmo: UnifiedssotIndividual__dlm         # VERIFY exact API name via metadata query
+    label: HCP                              # marketer-facing name
+    status: VERIFY
+    desc: Resolved "golden" person record; the anchor for all people counts.
+    grain: one row per resolved person
+    count_key: UnifiedRecordId__c           # COUNT(DISTINCT this) == # of people
+    fields:
+      unified_record_id:
+        api_name: UnifiedRecordId__c
+        label: HCP ID
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Resolved-person key; join toward the identity link and the count key.
+
+  # ---- Identity Resolution link ---------------------------------------------
+  IdentityLink:
+    dmo: UnifiedIndividualIdentityLink__dlm  # VERIFY exact API name via metadata query
+    label: Identity link (internal)          # plumbing — not shown to marketers
+    status: VERIFY
+    desc: >-
+      Bridge between the unified profile and its source records. All unified<->source
+      joins MUST route through this DMO — never join a unified profile directly to a source record.
+    grain: one row per (unified record <-> source record) mapping
+    fields:
+      unified_record_id:
+        api_name: UnifiedRecordId__c
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: -> UnifiedIndividual.UnifiedRecordId__c
+      source_record_id:
+        api_name: SourceRecordId__c
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: -> Individual.ssot__Id__c
+
+  # ---- Source-level individual ----------------------------------------------
+  Individual:
+    dmo: ssot__Individual__dlm
+    label: HCP                               # marketer-facing name (source-level details)
+    status: VERIFY                           # confirm against the customer org
+    desc: Source-level HCP record (pre-resolution); carries the HCP attributes used in filters.
+    primary_key: ssot__Id__c
+    grain: one row per source-level individual
+    fields:
+      id:
+        api_name: ssot__Id__c
+        label: HCP ID
+        type: Text
+        status: Verfied
+        pii: false
+        desc: Source individual primary key; join target from the identity link.
+      birth_date:
+        api_name: ssot__BirthDate__c
+        label: Date of birth
+        type: TimestampTZ
+        status: VERIFY
+        pii: true
+        desc: HCP date of birth.
+      first_name:
+        api_name: ssot__FirstName__c
+        label: First name
+        type: Text
+        status: Verified
+        pii: true
+        desc: Given name. Do not return in results — count only.
+      last_name:
+        api_name: ssot__LastName__c
+        label: Last name
+        type: Text
+        status: VERIFY
+        pii: true
+        desc: Family name. Do not return in results — count only.
+      salutation:
+        api_name: ssot__Salutation__c
+        label: Salutation
+        type: Text
+        # api_name + type metadata-confirmed against org trialsignup-d6178fbc40eb88 (2026-07-22);
+        # desc/pii/sampleValues human-curated -> stays VERIFY until architect sign-off.
+        status: VERIFY
+        pii: false
+        desc: >-
+          Honorific the person goes by (Mr., Mrs., Ms., Dr., ...). Non-PII, safe to filter on.
+          Map spoken forms to the stored literal — note values carry a trailing period ("Mr" -> 'Mr.').
+        sampleValues: ["Mr."]   # observed 2026-07-22: 1/7 populated 'Mr.', 6 blank ('')
+      # NOTE: state/region is NOT a field on Individual in the SSOT model.
+      # Confirmed against the live org (2026-07-14): ssot__Individual__dlm has no
+      # ssot__State__c column. State lives on ContactPointAddress (below), reached
+      # via PartyId — the same pattern as email. Do not add a state field here.
+      title:
+        api_name: ssot__TitleName__c
+        label: Title
+        # metadata-confirmed field on ssot__Individual__dlm (2026-07-27). DISTINCT from
+        # `salutation` — this is the job/professional title, NOT the Mr./Mrs./Dr. honorific.
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: >-
+          Professional/job title (e.g. "Chief of Cardiology"). Do NOT map the spoken honorific
+          "Mr"/"Dr" here — that's `salutation`. Use this only when the user means job title.
+      brand_affiliation:
+        api_name: BrandAffiliation__c
+        label: Brand affiliation
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Brand tie on the profile. VERIFY name + allowed values.
+        sampleValues: ["<brand-a>", "<brand-b>"]  # placeholders; architect fills real values
+
+  # ---- Contact point: email -------------------------------------------------
+  ContactPointEmail:
+    dmo: ssot__ContactPointEmail__dlm       # VERIFY exact API name via metadata query
+    label: Email
+    status: VERIFY
+    optional: true                          # map when consent/email is in scope
+    desc: >-
+      Email contact points, attached to the source Individual via PartyId. One person can have
+      many (personal, work, old, bounced). Source of "has email" / "opted-in / emailable".
+    primary_key: ssot__Id__c
+    grain: one row per email contact point
+    fields:
+      party_id:
+        api_name: ssot__PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: -> Individual.ssot__Id__c (party-linking pattern).
+      email_address:
+        api_name: ssot__EmailAddress__c
+        label: Email address
+        type: Text
+        status: VERIFY
+        pii: true
+        desc: Email address. Presence used for "has email"; never returned.
+      is_email_opt_out:
+        api_name: ssot__IsEmailOptOut__c
+        label: Email opt-out
+        type: Boolean
+        status: VERIFY
+        pii: false
+        desc: Opt-out flag. "opted-in / emailable" => is_email_opt_out = false.
+        sampleValues: [true, false]
+      contactability:
+        api_name: ssot__ContactPointContactabilityStatus__c
+        label: Contactability status
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Optional stricter contactability status.
+
+  # ---- Contact point: address -----------------------------------------------
+  ContactPointAddress:
+    dmo: ssot__ContactPointAddress__dlm     # VERIFY exact API name via metadata query
+    label: Address
+    status: VERIFY
+    desc: >-
+      Postal/geographic contact points, attached to the source Individual via PartyId. One person can
+      have many (home, work, historical). This is where state/region lives in the SSOT model — NOT on
+      Individual. Source of the "in <state>" filter.
+    primary_key: ssot__Id__c
+    grain: one row per address contact point
+    fields:
+      party_id:
+        api_name: ssot__PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: -> Individual.ssot__Id__c (party-linking pattern).
+      state:
+        api_name: ssot__StateProvince__c
+        label: State/region
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: 'State/region on the address. Map spoken names to codes ("Utah" -> ''UT''). VERIFY exact api_name.'
+        sampleValues: ["NY", "UT", "CA"]        # 2-letter codes; illustrative
+      country:
+        api_name: ssot__Country__c
+        label: Country
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Country on the address. VERIFY exact api_name.
+
+  # ---- Web engagement events ------------------------------------------------
+  WebEngagement:
+    dmo: WebEngagement__dlm                 # VERIFY exact API name via metadata query
+    label: Website engagement
+    status: VERIFY
+    desc: Website engagement events per person; source of the "visited the website" filter.
+    primary_key: EngagementId__c
+    grain: one row per web engagement event
+    fields:
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: -> Individual.ssot__Id__c (join key back toward the person).
+      visit_ts:
+        api_name: VisitTimestamp__c
+        label: Visit date/time
+        type: TimestampTZ
+        status: VERIFY
+        pii: false
+        desc: Event time; drives "within last N days" windows.
+      event_type:
+        api_name: EventType__c
+        label: Event type
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Optional event classifier (e.g. page view).
+        sampleValues: ["PageView", "FormSubmit"]  # illustrative; VERIFY real values
+
+  # ---- Prescription / Rx events ---------------------------------------------
+  # Replace names with the real Rx / claims DMO once that data model is mapped.
+  Prescription:
+    dmo: Rx__dlm                            # VERIFY / example only
+    label: Prescription
+    status: VERIFY
+    desc: >-
+      Prescriptions written by HCPs; source of "wrote an Rx for <brand>". Example/placeholder
+      until the real Rx/claims DMO is mapped.
+    primary_key: PrescriptionId__c
+    grain: one row per prescription written
+    fields:
+      prescriber_ref:
+        api_name: PrescriberId__c
+        label: Prescribing HCP (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Prescribing HCP; join key back toward Individual. VERIFY.
+      written_date:
+        api_name: WrittenDate__c
+        label: Date written
+        type: TimestampTZ
+        status: VERIFY
+        pii: false
+        desc: Date the Rx was written; drives "written in the last N days".
+      product_name:
+        api_name: DrugName__c
+        label: Product/brand
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Brand/product on the script. VERIFY allowed values.
+        sampleValues: ["<brand-a>", "<brand-b>"]  # placeholders; architect fills real values
+
+# -----------------------------------------------------------------------------
+# RELATIONSHIPS  (edges)  -- declared, directional, with cardinality
+# -----------------------------------------------------------------------------
+# HUMAN-CURATED. `from_key`/`to_key` are the join columns (referenced by the
+# field `api_name`s above). `cardinality` drives fan-out handling.
+# -----------------------------------------------------------------------------
+relationships:
+
+  # Identity resolution, hop 1 of 2: unified profile -> identity link
+  - name: unified_to_identitylink
+    status: VERIFY
+    kind: identity_resolution
+    from: UnifiedIndividual
+    to: IdentityLink
+    from_key: UnifiedRecordId__c
+    to_key: UnifiedRecordId__c
+    cardinality: one_to_many                # one unified profile -> many source links
+
+  # Identity resolution, hop 2 of 2: identity link -> source individual
+  - name: identitylink_to_individual
+    status: VERIFY
+    kind: identity_resolution
+    from: IdentityLink
+    to: Individual
+    from_key: SourceRecordId__c
+    to_key: ssot__Id__c
+    cardinality: one_to_one                 # each link row maps to one source individual
+
+  # Contact point: source individual -> email contact points
+  - name: individual_has_email
+    status: VERIFY
+    kind: contact_point
+    from: Individual
+    to: ContactPointEmail
+    from_key: ssot__Id__c
+    to_key: ssot__PartyId__c
+    cardinality: one_to_many                # one person -> many email contact points
+
+  # Contact point: source individual -> address contact points (state/region lives here)
+  - name: individual_has_address
+    status: VERIFY
+    kind: contact_point
+    from: Individual
+    to: ContactPointAddress
+    from_key: ssot__Id__c
+    to_key: ssot__PartyId__c
+    cardinality: one_to_many                # one person -> many address contact points
+
+  # Web engagement: source individual -> web events
+  - name: individual_has_web_engagement
+    status: VERIFY
+    kind: engagement_event
+    from: Individual
+    to: WebEngagement
+    from_key: ssot__Id__c
+    to_key: PartyId__c                       # VERIFY on the real engagement DMO
+    cardinality: one_to_many                 # one person -> many web events
+
+  # Transactional event: HCP individual -> prescriptions they wrote
+  - name: individual_wrote_prescription
+    status: VERIFY
+    kind: transactional_event
+    from: Individual
+    to: Prescription
+    from_key: ssot__Id__c
+    to_key: PrescriberId__c                  # VERIFY on the real Rx DMO
+    cardinality: one_to_many                 # one HCP -> many prescriptions
+
+# -----------------------------------------------------------------------------
+# PATHS  (named multi-hop traversals)  -- reusable join chains
+# -----------------------------------------------------------------------------
+paths:
+
+  # Reusable identity-resolution traversal: unified person -> source individual
+  unified_individual_to_source:
+    description: Resolve a unified profile down to its source individual record(s).
+    hops:
+      - unified_to_identitylink            # UnifiedIndividual -> IdentityLink
+      - identitylink_to_individual         # IdentityLink      -> Individual
+    dedupe_on: UnifiedIndividual.UnifiedRecordId__c
+    fan_out: true
+
+  unified_individual_to_email:
+    description: From a resolved person to their email contact points.
+    hops:
+      - unified_to_identitylink            # UnifiedIndividual -> IdentityLink
+      - identitylink_to_individual         # IdentityLink      -> Individual
+      - individual_has_email               # Individual        -> ContactPointEmail
+    dedupe_on: UnifiedIndividual.UnifiedRecordId__c
+    fan_out: true
+
+  unified_individual_to_address:
+    description: From a resolved person to their address contact points (state/region).
+    hops:
+      - unified_to_identitylink            # UnifiedIndividual -> IdentityLink
+      - identitylink_to_individual         # IdentityLink      -> Individual
+      - individual_has_address             # Individual        -> ContactPointAddress
+    dedupe_on: UnifiedIndividual.UnifiedRecordId__c
+    fan_out: true
+
+  unified_individual_to_web_engagement:
+    description: From a resolved person to their website engagement events.
+    hops:
+      - unified_to_identitylink            # UnifiedIndividual -> IdentityLink
+      - identitylink_to_individual         # IdentityLink      -> Individual
+      - individual_has_web_engagement      # Individual        -> WebEngagement
+    dedupe_on: UnifiedIndividual.UnifiedRecordId__c
+    fan_out: true                           # 1:N present -> MUST count DISTINCT anchor
+
+  unified_individual_to_prescriptions:
+    description: From a resolved HCP to the prescriptions they wrote.
+    hops:
+      - unified_to_identitylink            # UnifiedIndividual -> IdentityLink
+      - identitylink_to_individual         # IdentityLink      -> Individual
+      - individual_wrote_prescription      # Individual        -> Prescription
+    dedupe_on: UnifiedIndividual.UnifiedRecordId__c
+    fan_out: true                           # 1:N present -> MUST count DISTINCT anchor
+
+# -----------------------------------------------------------------------------
+# JOURNEYS  (worked NL examples -> how the pieces assemble)
+# -----------------------------------------------------------------------------
+journeys:
+
+  brand_web_visitors_by_state:
+    intent: "How many opted-in <brand> HCPs in <state> visited the website in the last 60 days?"
+    anchor: UnifiedIndividual
+    # State comes from ContactPointAddress, so this ask spans two child paths off the
+    # same person: web engagement AND address. Traverse both and dedupe on the anchor.
+    path: unified_individual_to_web_engagement
+    also_join: unified_individual_to_address        # for the state filter
+    filters:
+      - "Individual.brand_affiliation = '<brand>'"   # parameterize per request
+      - "ContactPointAddress.state = 'NY'"            # spoken name -> code; state lives on the address
+      - "WebEngagement.visit_ts >= CURRENT_DATE - INTERVAL '60 days'"
+      # opt-in can be enforced via the email contact point when that path is mapped:
+      #   also traverse unified_individual_to_email and require is_email_opt_out = false
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    # Assembled SQL (identity-resolution path via the link DMO; fields still VERIFY):
+    #
+    #   SELECT COUNT(DISTINCT ui."UnifiedRecordId__c") AS person_count
+    #   FROM "UnifiedssotIndividual__dlm" ui
+    #   JOIN "UnifiedIndividualIdentityLink__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."UnifiedRecordId__c"
+    #   JOIN "ssot__Individual__dlm" i
+    #     ON i."ssot__Id__c" = link."SourceRecordId__c"
+    #   JOIN "ssot__ContactPointAddress__dlm" addr
+    #     ON addr."ssot__PartyId__c" = i."ssot__Id__c"
+    #   JOIN "WebEngagement__dlm" web
+    #     ON web."PartyId__c" = i."ssot__Id__c"
+    #   WHERE i."BrandAffiliation__c" = '<brand>'
+    #     AND addr."ssot__StateProvince__c" = 'NY'
+    #     AND web."VisitTimestamp__c" >= CURRENT_DATE - INTERVAL '60 days';
+    #
+    # Note the DISTINCT: a person with 5 visits (or 3 addresses) counts once.
+
+  hcp_wrote_rx_by_state:
+    intent: "How many HCPs wrote an Rx for <brand> in <state>?"
+    anchor: UnifiedIndividual
+    # State comes from ContactPointAddress, so join both the Rx path and the address path
+    # off the same source Individual, then dedupe on the anchor.
+    path: unified_individual_to_prescriptions
+    also_join: unified_individual_to_address        # for the state filter
+    filters:
+      - "Prescription.product_name = '<brand>'"    # parameterize per request
+      - "ContactPointAddress.state = 'UT'"          # spoken name -> code, e.g. 'Utah' -> 'UT'
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    # Assembled SQL (identity-resolution path via the link DMO; Rx fields still VERIFY):
+    #
+    #   SELECT COUNT(DISTINCT ui."UnifiedRecordId__c") AS hcp_count
+    #   FROM "UnifiedssotIndividual__dlm" ui
+    #   JOIN "UnifiedIndividualIdentityLink__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."UnifiedRecordId__c"
+    #   JOIN "ssot__Individual__dlm" i
+    #     ON i."ssot__Id__c" = link."SourceRecordId__c"
+    #   JOIN "ssot__ContactPointAddress__dlm" addr
+    #     ON addr."ssot__PartyId__c" = i."ssot__Id__c"
+    #   JOIN "Rx__dlm" rx
+    #     ON rx."PrescriberId__c" = i."ssot__Id__c"
+    #   WHERE rx."DrugName__c" = '<brand>'
+    #     AND addr."ssot__StateProvince__c" = 'UT';
+    #
+    # Note the DISTINCT: an HCP with 20 scripts counts once, not twenty times.
