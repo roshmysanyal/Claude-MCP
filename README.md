@@ -116,6 +116,7 @@ The POC can begin now via `sf` CLI wrapped in a Claude Skill, before/without the
 MCP server. If the hosted Data 360 MCP server isn't yet enabled, the same phases hold — only the tool changes:
 
 - Replace the `search` → `payload_examples` → `execute` facade calls with `sf data ...` / `sf api request rest ...` commands against the D360 Connect API (add `--allow-non-ga-tools` for any Developer Preview commands).
+- **Connecting the CLI itself** → [setup/04-connect-cli-fallback.md](setup/04-connect-cli-fallback.md) — web-flow login for an interactive machine, or JWT bearer (certificate-based, no browser) for a headless/remote session.
 - The Skill in [skill/d360-segments-activations/](skill/d360-segments-activations/) documents both tool surfaces; keep the recipes and guardrails identical.
 - OCL/Snowflake validation, thresholds, and success criteria are **unchanged**.
 
@@ -130,7 +131,7 @@ customer-d360-poc/
 ├── README.md                    ← you are here
 ├── milestones.md                ← progress tracker (phases, status, blockers, decisions)
 ├── scaling-via-repo.md          ← PROPOSED: how one skill/semantic-layer update reaches every user (tool-agnostic)
-├── setup/                       ← 00 provision Salesforce · 01 install · 02 auth · 03 connect Claude
+├── setup/                       ← 00 provision Salesforce · 01 install · 02 auth · 03 connect Claude · 04 CLI fallback (incl. headless JWT)
 ├── skill/d360-segments-activations/  ← the governed Claude Skill (SKILL.md)
 ├── reference/                   ← semantic layer: DMO/field/join model (dataModel.yaml) + how-to-use / verify docs
 ├── prompts/                     ← example marketer prompts
