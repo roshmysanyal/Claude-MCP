@@ -7,7 +7,7 @@ Where the **skill owner** turns noisy [session-log.md](session-log.md) entries i
 > **Owner:** the named skill/governance owner. Only the owner promotes items here into a merged edit
 > of the governed skill — the same review bar as every other governance artifact in this repo
 > ([before-using-and-on-data-model-changes.md](../reference/before-using-and-on-data-model-changes.md),
-> [scaling-via-repo.md](../../../scaling-via-repo.md)). Users log; the owner decides and ships.
+> [scaling-via-repo.md](../scaling-via-repo.md)). Users log; the owner decides and ships.
 
 ---
 

@@ -18,9 +18,9 @@ different in *shape*, *rules*, and *result*. This file is the authoritative refe
 | **API** | Query family (SQL / QueryV2) | `POST /ssot/segments`, `PATCH /ssot/segments/{segmentApiName}` |
 
 **Key mental model:** a segment's inclusion criteria must **return the list of SegmentOn entities**.
-If `SegmentOn = UnifiedIndividual`, the SQL returns a list of **`UnifiedRecordId__c`** values — the
-people who qualify — **not** a count of them. You never submit a `COUNT(DISTINCT …)` query as a
-segment definition; it will be rejected.
+If `SegmentOn = UnifiedIndividual` (`dev_UnifiedIndividualRs1__dlm`), the SQL returns a list of
+**`Id__c`** values — the people who qualify — **not** a count of them. You never submit a
+`COUNT(DISTINCT …)` query as a segment definition; it will be rejected.
 
 ---
 
@@ -67,56 +67,62 @@ profile PK, and without `DISTINCT` you'd emit duplicate members. Subquery contai
 
 ## Worked example — "opted-in `<brand>` HCPs in NY who visited the website in the last 60 days"
 
-**SegmentOn:** `UnifiedIndividual` → the segment returns a list of `UnifiedRecordId__c`.
+**SegmentOn:** `UnifiedIndividual` (`dev_UnifiedIndividualRs1__dlm`) → the segment returns a list of
+`Id__c`. Dataspace: **Development**.
+
+> **Data note (2026-08-06):** Address + WebsiteEngagement are schema-mapped but **0 rows** in
+> Development today — this segment will be empty until those streams load. Brand is **not** on
+> Individual; use `WebsiteEngagement.Indication__c` / `TherapeuticArea__c` or `HcpSegmentation.Brand__c`
+> once populated.
 
 ```sql
-SELECT ui."UnifiedRecordId__c"
-FROM "UnifiedssotIndividual__dlm" ui
-WHERE ui."UnifiedRecordId__c" IN (
+SELECT ui."Id__c"
+FROM "dev_UnifiedIndividualRs1__dlm" ui
+WHERE ui."Id__c" IN (
     SELECT link."UnifiedRecordId__c"
-    FROM "UnifiedIndividualIdentityLink__dlm" link
+    FROM "dev_UnifiedLinkIndividualRs1__dlm" link
     WHERE link."SourceRecordId__c" IN (
-        SELECT i."ssot__Id__c"
-        FROM "ssot__Individual__dlm" i
-        WHERE i."BrandAffiliation__c" = '<brand>'
-          AND i."ssot__Id__c" IN (
-              SELECT addr."ssot__PartyId__c"
-              FROM "ssot__ContactPointAddress__dlm" addr
-              WHERE addr."ssot__StateProvince__c" = 'NY'
+        SELECT i."Id__c"
+        FROM "dev_Individual__dlm" i
+        WHERE i."Id__c" IN (
+              SELECT addr."PartyId__c"
+              FROM "dev_ContactPointAddress__dlm" addr
+              WHERE addr."StateProvinceId__c" = 'NY'
           )
-          AND i."ssot__Id__c" IN (
-              SELECT web."PartyId__c"
-              FROM "WebEngagement__dlm" web
-              WHERE web."VisitTimestamp__c" >= CURRENT_DATE - INTERVAL '60 days'
+          AND i."Id__c" IN (
+              SELECT web."IndividualId__c"
+              FROM "dev_WebsiteEngagement__dlm" web
+              WHERE web."EngagementDateTm__c" >= CURRENT_DATE - INTERVAL '60 days'
           )
     )
 );
 ```
 
-**Why this passes validation:** top-level select projects only the SegmentOn PK
-(`ui."UnifiedRecordId__c"`); no aggregation, no `SELECT *`, no `CASE`, no aliases; every column is
-fully qualified; each subquery is in a `WHERE` and emits exactly one column; every containment uses a
-**declared join key** from [dataModel.yaml](dataModel.yaml) (`UnifiedRecordId__c`,
-`SourceRecordId__c` → `ssot__Id__c`, `ssot__PartyId__c`, `PartyId__c`), routed through the identity
-link. Fields are still `VERIFY` until the org is connected.
+**Why this passes validation:** top-level select projects only the SegmentOn PK (`ui."Id__c"`);
+no aggregation, no `SELECT *`, no `CASE`, no aliases; every column is fully qualified; each subquery
+is in a `WHERE` and emits exactly one column; every containment uses a **declared join key** from
+[dataModel.yaml](dataModel.yaml) (`Id__c` ↔ `UnifiedRecordId__c` / `SourceRecordId__c` /
+`PartyId__c` / `IndividualId__c`), routed through the identity link.
 
 **Contrast with the count** (Recipe A) for the same population:
 
 ```sql
-SELECT COUNT(DISTINCT ui."UnifiedRecordId__c") AS person_count
-FROM "UnifiedssotIndividual__dlm" ui
-JOIN "UnifiedIndividualIdentityLink__dlm" link ON link."UnifiedRecordId__c" = ui."UnifiedRecordId__c"
-JOIN "ssot__Individual__dlm" i ON i."ssot__Id__c" = link."SourceRecordId__c"
-JOIN "ssot__ContactPointAddress__dlm" addr ON addr."ssot__PartyId__c" = i."ssot__Id__c"
-JOIN "WebEngagement__dlm" web ON web."PartyId__c" = i."ssot__Id__c"
-WHERE i."BrandAffiliation__c" = '<brand>'
-  AND addr."ssot__StateProvince__c" = 'NY'
-  AND web."VisitTimestamp__c" >= CURRENT_DATE - INTERVAL '60 days';
+SELECT COUNT(DISTINCT ui."Id__c") AS person_count
+FROM "dev_UnifiedIndividualRs1__dlm" ui
+JOIN "dev_UnifiedLinkIndividualRs1__dlm" link ON link."UnifiedRecordId__c" = ui."Id__c"
+JOIN "dev_Individual__dlm" i ON i."Id__c" = link."SourceRecordId__c"
+JOIN "dev_ContactPointAddress__dlm" addr ON addr."PartyId__c" = i."Id__c"
+JOIN "dev_WebsiteEngagement__dlm" web ON web."IndividualId__c" = i."Id__c"
+WHERE addr."StateProvinceId__c" = 'NY'
+  AND web."EngagementDateTm__c" >= CURRENT_DATE - INTERVAL '60 days';
 ```
 
 Same population, same join keys — but the count aggregates (and would be **rejected** as a segment),
 while the segment projects the member PKs (and would be **wrong** as a count if fan-out weren't
 contained). Build each to its own rules; don't reuse one for the other.
+
+**Demo-ready alternative (populated today):** email openers — swap WebsiteEngagement for
+`dev_EmailEngagement__dlm` with `EngagementChannelActionId__c = 'Open'`.
 
 ---
 

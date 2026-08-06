@@ -7,7 +7,7 @@ when the Data 360 data model changes.
 
 > **Owner:** Salesforce Data Cloud Architect confirms every DMO, field, type, join key, and
 > cardinality. The data model is a governance artifact — the same review bar as
-> [SKILL.md](../SKILL.md) and [ocl-benchmark.sql](../validation/ocl-benchmark.sql).
+> [SKILL.md](../skill/d360-segments-activations/SKILL.md) and [ocl-benchmark.sql](../validation/ocl-benchmark.sql).
 >
 > **Split of labor:** field-level facts (`dmo`, `api_name`, `type`, `primary_key`) can be
 > **seeded and confirmed from the org** via the MCP Query family's metadata query. Relationships,

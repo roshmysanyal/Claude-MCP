@@ -20,6 +20,8 @@ Without it, the agent would guess field and join names — and in the Data 360 S
 | `relationships` | Directional edges with `from_key`/`to_key` and `cardinality` | The **only** sanctioned join keys; cardinality drives fan-out handling |
 | `paths` | Named multi-hop join chains (with `dedupe_on`) | Reusable traversals so you don't re-derive joins |
 | `journeys` | Worked NL→SQL examples | Copy-adaptable templates for the common asks |
+| `data_streams` | Consent / Brand / CIA-related stream inventory (status, Snowflake source, DMO feed) | Explains *why* a DMO is empty (`NEEDS_ACTIVATION`) and what to activate |
+| `reference_segments` | Live CIA segment patterns (opt-in + brand includeCriteria) | Real literals and join shapes harvested from the org |
 
 Field metadata (`api_name`, `type`, `primary_key`) is verifiable from the org via the MCP metadata
 query; relationships, cardinality, `pii` flags, `desc`, and `sampleValues` are human-curated (real
@@ -46,7 +48,7 @@ hint cache, not the governed schema: confirmed observations can be promoted up i
    `'UT'`). `sampleValues` are illustrative examples, not the full domain — if the user's value
    isn't among them, don't assume it's invalid.
 3. **Choose the path.** Find (or assemble from `relationships`) the named `path` that connects the
-   anchor to the data being filtered — e.g. `unified_individual_to_prescriptions`.
+   anchor to the data being filtered — e.g. `unified_individual_to_nbrx`.
 4. **Honor identity resolution.** You **cannot** join the unified profile straight to a source
    record. Every unified↔source traversal routes through the `IdentityLink` DMO
    (`unified_to_identitylink` → `identitylink_to_individual`). The paths already encode this.
@@ -58,18 +60,19 @@ hint cache, not the governed schema: confirmed observations can be promoted up i
    `api_name` or SQL. Keep the technical form for execution and show it only on request. See the
    *Talking to the user* section of the Skill.
 
-### Worked example — "HCPs who wrote an Rx for `<brand>` in Utah"
+### Worked example — "HCPs who have NBRx for `<brand>` in Utah"
 
-- Anchor → `UnifiedIndividual`
-- "wrote an Rx" → `Prescription` via path `unified_individual_to_prescriptions`
-- "for `<brand>`" → `Prescription.product_name = '<brand>'`
+- Anchor → `UnifiedIndividual` (`dev_UnifiedIndividualRs1__dlm`)
+- "have NBRx" → `NBRxAggregated` via path `unified_individual_to_nbrx`
+- "for `<brand>`" → `NBRxAggregated.brand = '<brand>'`
 - "in Utah" → `ContactPointAddress.state = 'UT'` — **state lives on the address, not on Individual**
-  (confirmed against the org: `ssot__Individual__dlm` has no state column). Join the address via
-  `unified_individual_to_address` in addition to the Rx path.
-- Count → `COUNT(DISTINCT UnifiedIndividual.count_key)`
+  (confirmed: `dev_Individual__dlm` has no state column). Join the address via
+  `unified_individual_to_address` in addition to the NBRx path.
+- Count → `COUNT(DISTINCT UnifiedIndividual.count_key)` (`Id__c`)
 
-See the `hcp_wrote_rx_by_state` journey in [dataModel.yaml](dataModel.yaml) for the fully
-assembled SQL.
+See the `hcp_wrote_nbrx_by_brand` journey in [dataModel.yaml](dataModel.yaml) for the fully
+assembled SQL. **Note:** NBRx + Address have 0 rows in Development at seed (2026-08-06); for a
+populated demo use `email_openers_last_90_days`.
 
 ---
 
@@ -82,11 +85,15 @@ Every entity, field, and relationship carries a status:
   against the org.
 
 A `VERIFY` element does **not** block a count. Still answer the question — just **attach a one-line
-note** that the schema mapping is unverified (e.g. *"Note: the Rx/Prescription mapping is unverified
-pending Data Cloud Architect confirmation, so treat this number as indicative."*). What a `VERIFY`
+note** that the schema mapping is unverified (e.g. *"Note: the WebsiteEngagement stream has 0 rows
+in Development, so treat this number as indicative until data lands."*). What a `VERIFY`
 element does block is the formal **"validated"** label, which additionally requires the count to
 clear the OCL/Snowflake benchmark. So: unverified mapping → answer with a caveat; verified mapping + OCL/Snowflake match
 → validated. See [before-using-and-on-data-model-changes.md](before-using-and-on-data-model-changes.md).
+
+> As of 2026-08-06, Development DMO/field/join keys in [dataModel.yaml](dataModel.yaml) are
+> `verified`. Remaining caveats are **empty data streams** (Address, Website, NBRx, Consent) and
+> OCL/Snowflake column mapping — not unresolved schema.
 
 ---
 

@@ -9,7 +9,7 @@ artifacts:
 
 | Artifact | Role |
 |---|---|
-| [dataModel.yaml](dataModel.yaml) `sampleValues` | *Guidebook* — curated, illustrative values in the governed schema contract (architect-owned, `VERIFY`). |
+| [dataModel.yaml](dataModel.yaml) `sampleValues` | *Guidebook* — curated, illustrative values in the governed schema contract (architect-owned). |
 | **this file** | *Field notebook* — raw values actually observed in results + asks that came up empty. A hint cache that can **promote up** into `sampleValues` once confirmed. |
 | [before-using-and-on-data-model-changes.md](before-using-and-on-data-model-changes.md) | The verification/seeding loop that moves notebook → guidebook → `verified`. |
 
@@ -47,7 +47,53 @@ artifacts:
 
 <!-- Append entries as: DMO . field | org | seen | values (with counts) | notes -->
 
-### `ssot__Individual__dlm`
+### Development dataspace (DEV-US) — primary POC org
+
+Seeded via MCP `d360_query_sql` · seen `2026-08-06`.
+
+#### Row counts (snapshot)
+
+| DMO | Rows |
+|---|---|
+| `dev_Individual__dlm` | ~1,510,888 |
+| `dev_UnifiedIndividualRs1__dlm` | ~1,091,081 |
+| `dev_UnifiedLinkIndividualRs1__dlm` | ~1,510,888 |
+| `dev_ContactPointEmail__dlm` | ~999,600 |
+| `dev_EmailEngagement__dlm` | ~7,570,496 |
+| `dev_ContactPointAddress__dlm` | **0** |
+| `dev_WebsiteEngagement__dlm` | **0** |
+| `dev_NBRxAggregated__dlm` | **0** |
+| `dev_ContactPointConsent__dlm` | **0** |
+| `dev_ConsentPreference__dlm` | **0** |
+| `dev_HcpSegmentation__dlm` | **0** |
+
+#### `dev_EmailEngagement__dlm`
+
+- **`EngagementChannelActionId__c`** — dataspace `Development` · seen `2026-08-06`
+  | Value | Count |
+  |---|---|
+  | `Send` | 5,028,832 |
+  | `Open` | 1,974,831 |
+  | `Click` | 420,010 |
+  | `Bounce` | 128,073 |
+  | `Opt Out` | 18,137 |
+  | `Complaint` | 613 |
+  Promoted into [dataModel.yaml](dataModel.yaml) `EmailEngagement.engagement_channel_action.sampleValues`.
+
+#### `dev_Individual__dlm`
+
+- **`PrimarySpecialty__c`** — dataspace `Development` · seen `2026-08-06` · **0 populated**
+  (all ~1.51M rows null/blank). Specialty filters will return 0 until data lands.
+- **`Salutation__c` / `HcpType__c` / `Profession__c`** — dataspace `Development` · seen `2026-08-06`
+  · no non-blank distinct values returned in the seeded GROUP BY (treat as unpopulated for filters).
+
+---
+
+### Historical — `trialsignup-d6178fbc40eb88` (pre-customer sandbox)
+
+Kept for audit; **not** the POC org. Do not use these literals against Development.
+
+#### `ssot__Individual__dlm`
 
 - **`ssot__TitleName__c`** — org `trialsignup-d6178fbc40eb88` · seen `2026-07-14` · 7/7 populated
   Distinct values (1 each): `VP Sales`, `Executive Officer`, `Buyer`, `President`,
@@ -65,19 +111,30 @@ artifacts:
 
 Concepts a request tried to filter on where the backing field turned out empty or absent.
 
+### Development (2026-08-06)
+
+- **state / region** → `dev_ContactPointAddress__dlm.StateProvinceId__c`. Table has **0 rows**.
+  State filters return 0 until the address stream loads.
+- **website visit** → `dev_WebsiteEngagement__dlm`. Table has **0 rows**.
+- **NBRx / wrote an Rx** → `dev_NBRxAggregated__dlm`. Table has **0 rows**.
+- **opt-in consent** → `dev_ContactPointConsent__dlm` / `dev_ConsentPreference__dlm`. Both **0 rows**.
+  Interim opt-out signal only: `EmailEngagement.EngagementChannelActionId__c = 'Opt Out'`.
+- **primary specialty** → `dev_Individual__dlm.PrimarySpecialty__c`. Field exists; **all-null** at seed.
+- **brand affiliation on Individual** → **no such field**. Use `NBRxAggregated.Brand__c` or
+  `HcpSegmentation.Brand__c` (both empty at seed).
+
+### Historical — trialsignup
+
 - **"male" / gender** → mapped to `ssot__Individual__dlm.ssot__GenderIdentity__c` (and
-  `ssot__GenderId__c`). org `trialsignup-d6178fbc40eb88` · `2026-07-14`. **0/7 populated** — every
-  row is an empty string. A gender filter returns 0 not because there are no males, but because
-  **no gender is recorded**. The real "male" literal (`Male`? `M`? a coded id?) is unknown until
-  populated data exists.
+  `ssot__GenderId__c`). org `trialsignup-d6178fbc40eb88` · `2026-07-14`. **0/7 populated**.
 - **birth date / age** → `ssot__Individual__dlm.ssot__BirthDate__c`. org
-  `trialsignup-d6178fbc40eb88` · `2026-07-14`. **0/7 populated** (all NULL). No age filters possible.
+  `trialsignup-d6178fbc40eb88` · `2026-07-14`. **0/7 populated** (all NULL).
 
 ---
 
-## Standing observation about this org
+## Standing observation about Development (DEV-US)
 
-The 7 `ssot__Individual__dlm` rows in `trialsignup-d6178fbc40eb88` look like standard Salesforce
-**CRM Contacts** (business job titles, single `Salesforce_Home` data source, no gender/DOB) — **not
-HCP data**. Good enough to prove the query pipe; it has none of the HCP attributes the POC's
-segments actually filter on. Real validation needs the customer Data Cloud org.
+Identity resolution, Individuals, emails, and email engagement are live and queryable. Address,
+website, NBRx, consent, and HCP segmentation are **schema-mapped but empty** — demo counts that
+depend on those streams will be 0 until data lands. Best demo path today:
+`email_openers_last_90_days` (Open/Click on `dev_EmailEngagement__dlm`).
