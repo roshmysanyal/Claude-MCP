@@ -179,6 +179,279 @@ entities:
         desc: Brand tie on the profile. VERIFY name + allowed values.
         sampleValues: ["<brand-a>", "<brand-b>"]  # placeholders; architect fills real values
 
+  # ---- Individual Profile (distinct customer-master DMO) --------------------
+  IndividualProfile:
+    dmo: IndividualProfile__dlm              # VERIFY exact API name via metadata query
+    label: Individual Profile
+    status: VERIFY                           # api_name/type below are metadata-confirmed; relationships to
+                                              # UnifiedIndividual/IdentityLink/Individual are NOT yet mapped
+    desc: >-
+      Pfizer customer-master HCP profile record, seeded from a Data Cloud Data Model export
+      (2026-08-06) — a DIFFERENT DMO than ssot__Individual__dlm above (field naming has no "ssot__"
+      prefix). Do NOT assume PartyId__c/Id__c line up with the joins declared elsewhere in this file
+      until an architect confirms how this DMO relates to UnifiedIndividual/IdentityLink/Individual.
+    primary_key: Id__c
+    grain: one row per individual profile record
+    fields:
+      id:
+        api_name: Id__c
+        label: Individual Id
+        type: Text
+        status: verified
+        pii: false
+        desc: Primary key for this DMO.
+      party_id:
+        api_name: PartyId__c
+        label: Party
+        type: Text
+        status: verified
+        pii: false
+        desc: Party-linking key. VERIFY how this relates to the Individual.ssot__PartyId__c pattern before joining.
+      kq_id:
+        api_name: KQ_Id__c
+        label: Key Qualifier Individual Id
+        type: Text
+        status: verified
+        pii: false
+        desc: '"Individual Id" Key Qualifier.'
+      first_name:
+        api_name: FirstName__c
+        label: First Name
+        type: Text
+        status: verified
+        pii: true
+        desc: Given name. Do not return in results — count only.
+      middle_name:
+        api_name: MiddleName__c
+        label: Middle Name
+        type: Text
+        status: verified
+        pii: true
+        desc: Middle name. Do not return in results — count only.
+      last_name:
+        api_name: LastName__c
+        label: Last Name
+        type: Text
+        status: verified
+        pii: true
+        desc: Family name. Do not return in results — count only.
+      second_last_name:
+        api_name: SecondLastName__c
+        label: Second Last Name
+        type: Text
+        status: verified
+        pii: true
+        desc: Second/maternal family name (common in some locales). Do not return in results — count only.
+      name_suffix:
+        api_name: NameSuffix__c
+        label: Name Suffix
+        type: Text
+        status: verified
+        pii: false
+        desc: Suffix (Jr., Sr., III, ...).
+      salutation:
+        api_name: Salutation__c
+        label: Salutation
+        type: Text
+        status: verified
+        pii: false
+        desc: Honorific (Mr., Mrs., Dr., ...). Non-PII, safe to filter on.
+      birth_date:
+        api_name: BirthDate__c
+        label: Birth Date
+        type: DateTime
+        status: verified
+        pii: true
+        desc: HCP date of birth.
+      gender:
+        api_name: GenderId__c
+        label: Gender
+        type: Text
+        status: verified
+        pii: true
+        desc: Coded gender value. Enable Value Suggestion = true in the org; VERIFY the allowed-value list before mapping spoken terms.
+      occupation:
+        api_name: Occupation__c
+        label: Occupation
+        type: Text
+        status: verified
+        pii: false
+        desc: Free-text/coded occupation.
+      profession:
+        api_name: Profession__c
+        label: Profession
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded profession. Enable Value Suggestion = true; VERIFY allowed values.
+      primary_specialty:
+        api_name: PrimarySpecialty__c
+        label: Primary Specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: Primary medical specialty (display value). Enable Value Suggestion = true; VERIFY allowed values.
+      primary_specialty_code:
+        api_name: PrimarySpecialtyCode__c
+        label: Primary Specialty Code
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded form of primary_specialty. Enable Value Suggestion = true; VERIFY allowed values.
+      secondary_specialty:
+        api_name: SecondarySpecialty__c
+        label: Secondary Specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: Secondary medical specialty (display value). Enable Value Suggestion = true; VERIFY allowed values.
+      secondary_specialty_code:
+        api_name: SecondarySpecialtyCode__c
+        label: Secondary Specialty Code
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded form of secondary_specialty. Enable Value Suggestion = true; VERIFY allowed values.
+      hcp_type:
+        api_name: HcpType__c
+        label: Hcp Type
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded HCP type classification. Enable Value Suggestion = true; VERIFY allowed values.
+      hcp_status_code:
+        api_name: HcpStatusCode__c
+        label: Hcp Status Code
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded HCP status. Enable Value Suggestion = true; VERIFY allowed values.
+      hcp_suppression:
+        api_name: HcpSuppression__c
+        label: Hcp Suppression
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Suppression flag — likely governs whether the HCP should be excluded from outreach/segments.
+          VERIFY exact business meaning before filtering on it.
+      is_active:
+        api_name: IsActive__c
+        label: Is Active
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Active-record flag.
+      registered_user:
+        api_name: RegisteredUser__c
+        label: Registered User
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Whether this HCP is a registered user (portal/site). VERIFY exact scope.
+      pfizer_customer_id:
+        api_name: PfizerCustomerId__c
+        label: Pfizer Customer Id
+        type: Text
+        status: verified
+        pii: false
+        desc: Pfizer-internal customer identifier.
+      pfizer_employee:
+        api_name: PfizerEmployee__c
+        label: Pfizer Employee
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Flags Pfizer-employee records — likely excluded from HCP-facing segments. VERIFY exclusion rule with the architect.
+      test_user:
+        api_name: TestUser__c
+        label: Test User
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Flags test/synthetic records — should almost certainly be excluded from production segment counts. VERIFY exclusion rule with the architect.
+      internal_organization:
+        api_name: InternalOrganizationId__c
+        label: Internal Organization
+        type: Text
+        status: verified
+        pii: false
+        desc: Internal organization reference. VERIFY join target/meaning.
+      data_source:
+        api_name: DataSourceId__c
+        label: Data Source
+        type: Text
+        status: verified
+        pii: false
+        desc: Source system reference for this record.
+      data_source_object:
+        api_name: DataSourceObjectId__c
+        label: Data Source Object
+        type: Text
+        status: verified
+        pii: false
+        desc: Source object reference for this record.
+      external_record_id:
+        api_name: ExternalRecordId__c
+        label: External Record Id
+        type: Text
+        status: verified
+        pii: false
+        desc: Record identifier in the originating external source system.
+      external_source_id:
+        api_name: ExternalSourceId__c
+        label: External Source Id
+        type: Text
+        status: verified
+        pii: false
+        desc: Identifier of the originating external source system.
+      validation_status:
+        api_name: ValidationStatus__c
+        label: Validation Status
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded record-validation status. Enable Value Suggestion = true; VERIFY allowed values.
+      validation_date:
+        api_name: ValidationDate__c
+        label: Validation Date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Date the record was last validated.
+      created_date:
+        api_name: CreatedDate__c
+        label: Created Date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Record creation timestamp.
+      last_modified_date:
+        api_name: LastModifiedDate__c
+        label: Last Modified Date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Record last-modified timestamp.
+      cdw_current_indicator:
+        api_name: CdwCurrentIndicator__c
+        label: Cdw Current Indicator
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Current-record indicator from the CDW source feed. Likely should be true-filtered to avoid
+          counting superseded rows — VERIFY with the architect.
+      cdw_delete_indicator:
+        api_name: CdwDeleteIndicator__c
+        label: Cdw Delete Indicator
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Delete/tombstone indicator from the CDW source feed. Likely should be false-filtered to
+          exclude deleted rows — VERIFY with the architect.
+
   # ---- Contact point: email -------------------------------------------------
   ContactPointEmail:
     dmo: ssot__ContactPointEmail__dlm       # VERIFY exact API name via metadata query
