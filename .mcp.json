@@ -1,0 +1,11 @@
+{
+  "_comment": "Salesforce-HOSTED Data 360 MCP server (no local process). Cursor form: url + auth.CLIENT_ID (the External Client App Consumer Key). Auth is per-user OAuth 2.0 + PKCE, handled interactively by the client — NO secret in this file. Sandbox URL shown; use the /data/ (non-sandbox) path for production. See setup/02-auth-setup.md and 03-connect-claude.md.",
+  "mcpServers": {
+    "data360": {
+      "url": "https://api.salesforce.com/platform/mcp/v1/sandbox/data/data-360-mcp",
+      "auth": {
+        "CLIENT_ID": "REPLACE_WITH_ECA_CONSUMER_KEY"
+      }
+    }
+  }
+}

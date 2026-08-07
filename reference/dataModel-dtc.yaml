@@ -1,0 +1,1013 @@
+# =============================================================================
+# Data 360 Data Model — DTC dataspace (Patient / consumer semantic layer)
+# =============================================================================
+# PURPOSE
+#   Sibling of dataModel-dev.yaml. Same contract, different audience:
+#     dataModel-dev.yaml -> HCP  (dataspace Development / DEV-US, prefix dev_)
+#     dataModel-dtc.yaml  -> PATIENT / consumer (dataspace DTC, prefix DTC_)
+#
+#   Route to THIS file when the request is about patients, consumers, members,
+#   caregivers, or DTC brand audiences. Route to dataModel-dev.yaml when the request
+#   is about HCPs, prescribers, or physicians. See the Skill's "Semantic layer
+#   routing" section.
+#
+# ORG SEED (MCP, 2026-08-07)
+#   Dataspace: DTC (prefix `DTC_`)
+#   Seeded via: d360_dmo_list / d360_dmo_get / d360_query_sql
+#   Row snapshot at seed time — DTC is POPULATED (unlike HCP brand/consent):
+#     UnifiedIndividual ~191,425 · Individual ~192,952 · ContactPointEmail ~176,879
+#     ContactPointConsent ~274,423 · ConsentPreference ~340,459
+#     BrandProfile ~194,335
+#   EXCEPTION: EmailEngagement has 35,515 rows but only ~54 distinct people and
+#   2 that resolve to an Individual — treat it as test data, status VERIFY.
+#
+# JOIN PATHS CONFIRMED BY QUERY (2026-08-07)
+#   unified -> link -> individual -> BrandProfile      = 191,424 people  OK
+#   unified -> link -> individual -> ContactPointEmail = 175,377 people  OK
+#   unified -> link -> individual -> EmailEngagement   =       2 people  BROKEN/EMPTY
+#
+# IDENTITY RESOLUTION RULE (important)
+#   Same rule as the HCP model, different DMOs. You CANNOT join the unified
+#   profile directly to a source individual — traverse the identity link:
+#       UnifiedIndividual.Id__c
+#           = IdentityLink.UnifiedRecordId__c
+#       IdentityLink.SourceRecordId__c
+#           = Individual.Id__c
+#
+# PII / SENSITIVITY WARNING (stricter than the HCP model)
+#   DTC records are PATIENTS. BrandProfile carries health-status attributes
+#   (disease state, diagnosis date, pregnancy, medication, insurance). Treat
+#   these as sensitive: filter on them when asked, NEVER return the rows or the
+#   individual-level values. Counts only.
+#
+# COUNT OUTPUT RULE (same as HCP — always on)
+#   A count answer is the integer only (plus validation metadata). Never SELECT
+#   or return pii:true fields (name, email, phone, address, DOB, IDs) or health
+#   attributes with a patient/DTC count. Filters in WHERE are OK; result grids
+#   of people are not. See the Skill "PII-safe counts" section.
+#
+# STATUS LEGEND (per entity / field / relationship)
+#   verified   -> confirmed against the live org (metadata query and/or SME)
+#   VERIFY     -> placeholder; confirm before trusting
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql          # Data 360 Query API v2 dialect
+  dataspace: DTC               # prefix `DTC_` — pass on every query/segment op
+  dataspace_label: DTC
+  anchor: UnifiedIndividual    # default "people" entity for patient counts
+  # Counting rule: a person = one distinct anchor count_key, regardless of how
+  # many child rows (consents, engagements, brand profiles) they fan out to.
+
+# -----------------------------------------------------------------------------
+# ENTITIES  (nodes)  — DMO + field metadata
+# -----------------------------------------------------------------------------
+entities:
+
+  # ---- Unified/resolved patient profile -------------------------------------
+  UnifiedIndividual:
+    dmo: DTC_UnifiedIndividualDtc__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Patient
+    status: verified
+    desc: >-
+      Resolved "golden" patient/consumer record in the DTC dataspace; the anchor
+      for all people counts. ~191K rows at seed (2026-08-07).
+    grain: one row per resolved person
+    count_key: Id__c            # COUNT(DISTINCT this) == # of people
+    primary_key: Id__c
+    fields:
+      unified_record_id:
+        api_name: Id__c
+        label: Patient ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Resolved-person primary key; join target from IdentityLink.UnifiedRecordId__c; count key.
+      first_name:
+        api_name: FirstName__c
+        label: First name
+        type: Text
+        status: verified
+        pii: true
+        desc: Given name. Do not return in results — count only.
+      last_name:
+        api_name: LastName__c
+        label: Last name
+        type: Text
+        status: verified
+        pii: true
+        desc: Family name. Do not return in results — count only.
+      gender:
+        api_name: GenderId__c
+        label: Gender
+        type: Text
+        status: verified
+        pii: true
+        desc: Gender code. Sensitive; filter only.
+      declared_age:
+        api_name: DeclaredAge__c
+        label: Declared age
+        type: Text
+        status: verified
+        pii: true
+        desc: Self-declared age (stored as text). Sensitive; filter only.
+      is_eighteen:
+        api_name: EighteenYearsOld__c
+        label: Is 18 or older
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Age-gate flag. Commonly required for DTC marketable audiences.
+      lives_in_massachusetts:
+        api_name: LivesInMassachusetts__c
+        label: Massachusetts resident
+        type: Boolean
+        status: verified
+        pii: false
+        desc: MA-residency flag — drives state-specific DTC marketing restrictions.
+      language_preference:
+        api_name: LanguagePreference__c
+        label: Language preference
+        type: Text
+        status: verified
+        pii: false
+        desc: Preferred communication language.
+      acquisition_date:
+        api_name: AcquisitionDate__c
+        label: Acquisition date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the consumer first entered the DTC file.
+      acquisition_source_code:
+        api_name: AcquisitionSourceCode__c
+        label: Acquisition source
+        type: Text
+        status: verified
+        pii: false
+        desc: Source/campaign code the consumer was acquired through.
+      most_recent_date:
+        api_name: MostRecentDate__c
+        label: Most recent activity date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Most recent source-record touch; useful for recency windows.
+      retired:
+        api_name: Retired__c
+        label: Retired record
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Retired/inactive profile flag — typically excluded from audiences.
+      party_id:
+        api_name: PartyId__c
+        label: Party ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Party reference on the unified profile.
+
+  # ---- Identity Resolution link ---------------------------------------------
+  IdentityLink:
+    dmo: DTC_UnifiedLinkIndividualDtc__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Identity link (internal)          # plumbing — not shown to marketers
+    status: verified
+    desc: >-
+      Bridge between the unified DTC profile and its source records. All
+      unified<->source joins MUST route through this DMO.
+    grain: one row per (unified record <-> source record) mapping
+    fields:
+      unified_record_id:
+        api_name: UnifiedRecordId__c
+        label: Unified patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> UnifiedIndividual.Id__c
+      source_record_id:
+        api_name: SourceRecordId__c
+        label: Source patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      kq_source_record_id:
+        api_name: KQ_SourceRecordId__c
+        label: Key qualifier (source record)
+        type: Text
+        status: verified
+        pii: false
+        desc: Key qualifier companion for SourceRecordId__c.
+      data_source_id:
+        api_name: DataSourceId__c
+        label: Data source
+        type: Text
+        status: verified
+        pii: false
+        desc: Source system for this link row (part of the bridge composite key).
+      data_source_object_id:
+        api_name: DataSourceObjectId__c
+        label: Data source object
+        type: Text
+        status: verified
+        pii: false
+        desc: Source object for this link row (part of the bridge composite key).
+
+  # ---- Source-level individual ----------------------------------------------
+  Individual:
+    dmo: DTC_Individual__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Patient
+    status: verified
+    desc: >-
+      Source-level patient/consumer record (pre-resolution) in DTC; carries the
+      attributes used in filters. ~193K rows at seed.
+    primary_key: Id__c
+    grain: one row per source patient record
+    fields:
+      id:
+        api_name: Id__c
+        label: Patient source ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Source-record primary key; join target from IdentityLink.SourceRecordId__c.
+      kq_id:
+        api_name: KQ_Id__c
+        label: Key qualifier (ID)
+        type: Text
+        status: verified
+        pii: false
+        desc: Key qualifier companion for Id__c — project alongside the PK in segment SQL.
+      first_name:
+        api_name: FirstName__c
+        label: First name
+        type: Text
+        status: verified
+        pii: true
+        desc: Given name. Filter only — never returned.
+      last_name:
+        api_name: LastName__c
+        label: Last name
+        type: Text
+        status: verified
+        pii: true
+        desc: Family name. Filter only — never returned.
+      gender:
+        api_name: GenderId__c
+        label: Gender
+        type: Text
+        status: verified
+        pii: true
+        desc: Gender code. Sensitive; filter only.
+      declared_age:
+        api_name: DeclaredAge__c
+        label: Declared age
+        type: Text
+        status: verified
+        pii: true
+        desc: Self-declared age. Sensitive; filter only.
+      is_eighteen:
+        api_name: EighteenYearsOld__c
+        label: Is 18 or older
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Age-gate flag.
+      lives_in_massachusetts:
+        api_name: LivesInMassachusetts__c
+        label: Massachusetts resident
+        type: Boolean
+        status: verified
+        pii: false
+        desc: MA-residency flag for state-specific DTC restrictions.
+      active_duty_military:
+        api_name: ActiveDutyMilitary__c
+        label: Active-duty military
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Active-duty military flag (affects some program eligibility).
+      language_preference:
+        api_name: LanguagePreference__c
+        label: Language preference
+        type: Text
+        status: verified
+        pii: false
+        desc: Preferred communication language.
+      acquisition_date:
+        api_name: AcquisitionDate__c
+        label: Acquisition date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the consumer entered the file.
+      acquisition_source_code:
+        api_name: AcquisitionSourceCode__c
+        label: Acquisition source
+        type: Text
+        status: verified
+        pii: false
+        desc: Acquisition source/campaign code.
+      most_recent_date:
+        api_name: MostRecentDate__c
+        label: Most recent activity date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Most recent source touch; recency filters.
+      retired:
+        api_name: Retired__c
+        label: Retired record
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Retired/inactive profile flag.
+      party_id:
+        api_name: PartyId__c
+        label: Party ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Party reference; contact points hang off this / Id__c.
+
+  # ---- Contact point: email -------------------------------------------------
+  ContactPointEmail:
+    dmo: DTC_ContactPointEmail__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Email
+    status: verified
+    desc: >-
+      Email contact points attached to the source Individual via PartyId.
+      ~177K rows at seed. Source of "has a valid email".
+    primary_key: Id__c
+    grain: one row per email contact point
+    fields:
+      id:
+        api_name: Id__c
+        label: Email contact point ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Contact-point primary key.
+      party_id:
+        api_name: PartyId__c
+        label: Patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      email_address:
+        api_name: EmailAddress__c
+        label: Email address
+        type: Text
+        status: verified
+        pii: true
+        desc: The address itself. Never return — count only.
+      email_domain:
+        api_name: EmailDomain__c
+        label: Email domain
+        type: Text
+        status: verified
+        pii: false
+        desc: Domain portion; used for test/internal-domain exclusions.
+      email_domain_restricted:
+        api_name: EmailDomainRestricted__c
+        label: Restricted domain
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Flag for restricted/blocked domains — usually excluded.
+      is_valid:
+        api_name: Valid__c
+        label: Valid email
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Email validity flag — the DTC equivalent of "mailable address".
+      is_active:
+        api_name: IsActive__c
+        label: Active
+        type: Text
+        status: verified
+        pii: false
+        desc: Active flag on the contact point (stored as text).
+      active_from_date:
+        api_name: ActiveFromDate__c
+        label: Active from
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the contact point became active.
+
+  # ---- Contact point consent (opt-in / opt-out) ------------------------------
+  ContactPointConsent:
+    dmo: DTC_ContactPointConsent__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Consent
+    status: verified
+    desc: >-
+      Consent granted by a party for a specific contact point. ~274K rows at
+      seed — this is POPULATED in DTC, so opt-in filters actually work here
+      (unlike the HCP Development model).
+    primary_key: Id__c
+    grain: one row per contact-point consent record
+    fields:
+      id:
+        api_name: Id__c
+        label: Consent ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Consent primary key.
+      party_id:
+        api_name: PartyId__c
+        label: Patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      contact_point_id:
+        api_name: ContactPointId__c
+        label: Contact point ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> ContactPointEmail.Id__c (or another contact point).
+      consent_status:
+        api_name: ConsentStatusId__c
+        label: Consent status
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Consent status. Live DTC vocabulary (2026-08-07): IN (~172K), UNKNOWN
+          (~96K), OUT (~6K), plus rare 'Yes' (45). Prefer IN / UNKNOWN for
+          marketable opt-in; do not assume HCP-only literals.
+        sampleValues: ["IN", "UNKNOWN", "OUT", "Yes"]
+      consent_captured_date:
+        api_name: ConsentCapturedDateTime__c
+        label: Consent captured date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When consent was captured.
+      consent_captured_source:
+        api_name: ConsentCapturedSourceName__c
+        label: Consent source
+        type: Text
+        status: verified
+        pii: false
+        desc: Where the consent was captured (site/program).
+      effective_from:
+        api_name: EffectiveFromDate__c
+        label: Effective from
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Consent effective-from timestamp.
+      data_subject_id:
+        api_name: DataSubjectId__c
+        label: Data subject ID
+        type: Text
+        status: verified
+        pii: false
+        desc: OneTrust data-subject reference.
+
+  # ---- Consent preference ---------------------------------------------------
+  ConsentPreference:
+    dmo: DTC_ConsentPreference__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Consent preference
+    status: verified
+    desc: >-
+      Preference name/type/value rows tied to a contact-point consent.
+      ~340K rows at seed — the DTC brand/channel opt-in source.
+    primary_key: Id__c
+    grain: one row per preference
+    fields:
+      id:
+        api_name: Id__c
+        label: Consent preference ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Preference primary key.
+      contact_point_consent_id:
+        api_name: ContactPointConsentId__c
+        label: Consent ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> ContactPointConsent.Id__c
+      preference_name:
+        api_name: PreferenceName__c
+        label: Preference name
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Brand or topic the preference applies to. Live top values (2026-08-07):
+          ALL, PFIZERFORALL, PREMARIN, COMIRNATY, ESTRING, LITFULO, …
+        sampleValues:
+          - ALL
+          - PFIZERFORALL
+          - PREMARIN
+          - COMIRNATY
+          - ESTRING
+          - LITFULO
+          - LIVING_WITH_CANCER
+          - DUAVEE
+          - GENOTROPIN
+          - XELJANZ
+          - NURTEC
+      preference_type:
+        api_name: PreferenceType__c
+        label: Preference type
+        type: Text
+        status: verified
+        pii: false
+        desc: Preference category. Live values (2026-08-07): Brand, Topic.
+        sampleValues: ["Brand", "Topic"]
+      preference_value:
+        api_name: PreferenceValue__c
+        label: Preference value
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Opt-in/out value for the preference. Live values (2026-08-07): IN,
+          OUT, UNKNOWN (plus some nulls).
+        sampleValues: ["IN", "OUT", "UNKNOWN"]
+      preference_last_updated:
+        api_name: PreferenceLastUpdatedDate__c
+        label: Preference last updated
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the preference last changed.
+
+  # ---- Brand / health profile (DTC-specific) --------------------------------
+  BrandProfile:
+    dmo: DTC_BrandProfile__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Brand profile
+    status: verified
+    desc: >-
+      Per-patient, per-brand profile: brand affiliation, disease/therapy context,
+      program enrollment, and insurance. ~194K rows at seed. This is the DTC
+      answer to "which brand is this consumer associated with" — the HCP model
+      has no equivalent populated object.
+    primary_key: Id__c
+    grain: one row per (patient, brand) profile
+    sensitivity: >-
+      Contains health-status attributes. Filter on them when asked; never return
+      individual-level values. Counts only.
+    fields:
+      id:
+        api_name: Id__c
+        label: Brand profile ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Row primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: Patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      brand:
+        api_name: Brand__c
+        label: Brand
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Brand this profile relates to. Live top brands by distinct patient
+          (2026-08-07); ~83K rows have null Brand__c.
+        sampleValues:
+          - PREMARIN
+          - COMIRNATY
+          - ESTRING
+          - LITFULO
+          - GENOTROPIN
+          - XELJANZ
+          - PAXLOVID
+          - DUAVEE
+          - CIBINQO
+          - NURTEC
+          - HYMPAVZI
+          - EUCRISA
+          - IBRANCE
+          - VYNDAMAX
+      customer_type:
+        api_name: CustomerType__c
+        label: Customer type
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Consumer classification. Live clean values (2026-08-07): Patient,
+          Caregiver, Prospect, Other, HCP. Many nulls; some dirty concatenated
+          strings — prefer exact-match on the clean set.
+        sampleValues: ["Patient", "Caregiver", "Prospect", "Other", "HCP"]
+      disease_state:
+        api_name: DiseaseState__c
+        label: Disease state
+        type: Text
+        status: verified
+        pii: true
+        desc: Health condition. SENSITIVE — filter only, never return.
+      diagnosis_date:
+        api_name: DiagnosisDate__c
+        label: Diagnosis date
+        type: Date
+        status: verified
+        pii: true
+        desc: Date of diagnosis. SENSITIVE — filter only.
+      therapy_indication:
+        api_name: TherapyIndication__c
+        label: Therapy indication
+        type: Text
+        status: verified
+        pii: true
+        desc: Indication being treated. SENSITIVE — filter only.
+      medication_name:
+        api_name: MedicationName__c
+        label: Medication
+        type: Text
+        status: verified
+        pii: true
+        desc: Medication the consumer reports taking. SENSITIVE — filter only.
+      on_medication:
+        api_name: OnMedication__c
+        label: Currently on medication
+        type: Boolean
+        status: verified
+        pii: true
+        desc: Whether currently on therapy. SENSITIVE — filter only.
+      started_medication:
+        api_name: StartedMedication__c
+        label: Started medication
+        type: Boolean
+        status: verified
+        pii: true
+        desc: Whether therapy has been started. SENSITIVE — filter only.
+      is_pregnant:
+        api_name: IsPregnant__c
+        label: Pregnant
+        type: Boolean
+        status: verified
+        pii: true
+        desc: Pregnancy status. HIGHLY SENSITIVE — filter only, never return.
+      payer_type:
+        api_name: PayerType__c
+        label: Payer type
+        type: Text
+        status: verified
+        pii: false
+        desc: Payer classification. VERIFY literals.
+      plan_type:
+        api_name: PlanType__c
+        label: Plan type
+        type: Text
+        status: verified
+        pii: false
+        desc: Insurance plan type. VERIFY literals.
+      preferred_communication:
+        api_name: PreferredCommunication__c
+        label: Preferred channel
+        type: Text
+        status: verified
+        pii: false
+        desc: Preferred contact channel. VERIFY literals.
+      topic:
+        api_name: Topic__c
+        label: Topic
+        type: Text
+        status: verified
+        pii: false
+        desc: Topic of interest. VERIFY literals.
+      program_enrollment_status:
+        api_name: IsProgramEnrollmentStatus__c
+        label: Enrolled in program
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Whether the consumer is enrolled in a brand support program.
+      acquisition_date:
+        api_name: AcquisitionDate__c
+        label: Acquisition date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When this brand relationship began.
+      most_recent_date:
+        api_name: MostRecentDate__c
+        label: Most recent activity date
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Most recent touch on this brand profile; recency filters.
+
+  # ---- Email engagement events ----------------------------------------------
+  EmailEngagement:
+    dmo: DTC_Email_Engagement__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Email engagement
+    status: VERIFY                # person linkage unconfirmed — see data_note
+    data_note: >-
+      DO NOT USE FOR AUDIENCES YET. 35,515 event rows at seed (2026-08-07), but
+      only ~54 distinct Individual__c values, ~20 distinct EID__c, and ~37
+      distinct email addresses — and only 2 of them join to a real
+      DTC_Individual__dlm row. Joining on email address matches 3 people. This
+      looks like test/partial data, so the person link is unverified: it may be
+      the wrong key, or the right key with no production data behind it. Confirm
+      with the Data Cloud Architect before counting or segmenting on engagement.
+      If a user asks for DTC email engagement, say the source isn't populated
+      rather than returning a near-zero count as if it were the answer.
+    desc: >-
+      Email engagement events per consumer. NOTE the field names differ from the
+      HCP model: the person link is `Individual__c` (not IndividualId__c), the
+      timestamp is `EngagementDateTime__c`, and the action is
+      `EngagementChannelAction__c`.
+    primary_key: EmailEngagementId__c
+    grain: one row per email engagement event
+    fields:
+      id:
+        api_name: EmailEngagementId__c
+        label: Email engagement ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Event primary key.
+      individual_id:
+        api_name: Individual__c
+        label: Patient ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: >-
+          Intended link to Individual.Id__c (note: NOT named IndividualId__c in
+          DTC). Only 2 values resolve against DTC_Individual__dlm at seed —
+          unverified. See the entity's data_note.
+      engagement_date:
+        api_name: EngagementDateTime__c
+        label: Engagement date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Event time; drives "within last N days" windows.
+      engagement_channel_action:
+        api_name: EngagementChannelAction__c
+        label: Engagement action
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Send / Open / Click / Bounce / Unsubscribe-style action. VERIFY the
+          exact DTC literals before filtering — do not copy the HCP values.
+      engagement_channel:
+        api_name: EngagementChannel__c
+        label: Engagement channel
+        type: Text
+        status: verified
+        pii: false
+        desc: Channel of the engagement.
+      email_name:
+        api_name: EmailName__c
+        label: Email name
+        type: Text
+        status: verified
+        pii: false
+        desc: Name of the email asset.
+      market_journey_name:
+        api_name: MarketJourneyName__c
+        label: Journey name
+        type: Text
+        status: verified
+        pii: false
+        desc: Journey the send belonged to.
+      link_url:
+        api_name: LinkURL__c
+        label: Clicked link URL
+        type: Text
+        status: verified
+        pii: false
+        desc: URL clicked (click events).
+      state_province:
+        api_name: StateProvinceTxt__c
+        label: State/province
+        type: Text
+        status: verified
+        pii: false
+        desc: State captured on the engagement event (not the profile address).
+      email_address:
+        api_name: EmailAddress__c
+        label: Email address
+        type: Text
+        status: verified
+        pii: true
+        desc: Address on the event. Never return — count only.
+      unsubscribe_reason:
+        api_name: UnsubscribeReason__c
+        label: Unsubscribe reason
+        type: Text
+        status: verified
+        pii: false
+        desc: Reason captured on unsubscribe events.
+
+# -----------------------------------------------------------------------------
+# RELATIONSHIPS  (edges)  -- declared, directional, with cardinality
+# -----------------------------------------------------------------------------
+relationships:
+
+  - name: unified_to_identitylink
+    status: verified
+    kind: identity_resolution
+    from: UnifiedIndividual
+    to: IdentityLink
+    from_key: Id__c
+    to_key: UnifiedRecordId__c
+    cardinality: one_to_many
+
+  - name: identitylink_to_individual
+    status: verified
+    kind: identity_resolution
+    from: IdentityLink
+    to: Individual
+    from_key: SourceRecordId__c
+    to_key: Id__c
+    cardinality: many_to_one
+
+  - name: individual_has_email
+    status: verified
+    kind: contact_point
+    from: Individual
+    to: ContactPointEmail
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many
+
+  - name: individual_has_consent
+    status: verified
+    kind: consent
+    from: Individual
+    to: ContactPointConsent
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many
+
+  - name: consent_has_preference
+    status: verified
+    kind: consent
+    from: ContactPointConsent
+    to: ConsentPreference
+    from_key: Id__c
+    to_key: ContactPointConsentId__c
+    cardinality: one_to_many
+
+  - name: individual_has_brand_profile
+    status: verified
+    kind: attribute
+    from: Individual
+    to: BrandProfile
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many
+
+  - name: individual_has_email_engagement
+    status: VERIFY                 # only 2 individuals resolve — see EmailEngagement.data_note
+    kind: engagement_event
+    from: Individual
+    to: EmailEngagement
+    from_key: Id__c
+    to_key: Individual__c          # NOTE: DTC names this field Individual__c
+    cardinality: one_to_many
+
+# -----------------------------------------------------------------------------
+# PATHS  — reusable multi-hop traversals from the anchor
+# -----------------------------------------------------------------------------
+paths:
+
+  unified_individual_to_source:
+    from: UnifiedIndividual
+    to: Individual
+    hops: [unified_to_identitylink, identitylink_to_individual]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_email:
+    from: UnifiedIndividual
+    to: ContactPointEmail
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_email]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_consent:
+    from: UnifiedIndividual
+    to: ContactPointConsent
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_consent]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_consent_preference:
+    from: UnifiedIndividual
+    to: ConsentPreference
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_consent, consent_has_preference]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_brand_profile:
+    from: UnifiedIndividual
+    to: BrandProfile
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_brand_profile]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_email_engagement:
+    from: UnifiedIndividual
+    to: EmailEngagement
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_email_engagement]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+    status: VERIFY
+    warning: >-
+      Resolves to 2 people at seed. Do not build counts or segments on this path
+      until the architect confirms the link — see EmailEngagement.data_note.
+
+# -----------------------------------------------------------------------------
+# JOURNEYS  — worked NL -> SQL examples (DTC / patient)
+# -----------------------------------------------------------------------------
+journeys:
+
+  patients_by_brand:
+    intent: "How many patients are associated with <brand>?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_brand_profile
+    filters:
+      - "BrandProfile.brand = '<brand>'"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    #   SELECT COUNT(DISTINCT ui."Id__c") AS patient_count
+    #   FROM "DTC_UnifiedIndividualDtc__dlm" ui
+    #   JOIN "DTC_UnifiedLinkIndividualDtc__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."Id__c"
+    #   JOIN "DTC_Individual__dlm" i
+    #     ON i."Id__c" = link."SourceRecordId__c"
+    #   JOIN "DTC_BrandProfile__dlm" bp
+    #     ON bp."IndividualId__c" = i."Id__c"
+    #   WHERE bp."Brand__c" = '<brand>';
+    caveats:
+      - "Confirm the Brand__c literal set before filtering — values are VERIFY."
+
+  patient_email_openers_last_90_days:
+    intent: "How many patients opened an email in the last 90 days?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_email_engagement
+    filters:
+      - "EmailEngagement.engagement_channel_action = '<open-literal>'"
+      - "EmailEngagement.engagement_date >= CURRENT_DATE - INTERVAL '90 days'"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    #   SELECT COUNT(DISTINCT ui."Id__c") AS patient_count
+    #   FROM "DTC_UnifiedIndividualDtc__dlm" ui
+    #   JOIN "DTC_UnifiedLinkIndividualDtc__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."Id__c"
+    #   JOIN "DTC_Individual__dlm" i
+    #     ON i."Id__c" = link."SourceRecordId__c"
+    #   JOIN "DTC_Email_Engagement__dlm" ee
+    #     ON ee."Individual__c" = i."Id__c"
+    #   WHERE ee."EngagementChannelAction__c" = '<open-literal>'
+    #     AND ee."EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90 days';
+    caveats:
+      - "BLOCKED at seed: EmailEngagement resolves to only 2 people. Tell the user the DTC engagement source isn't populated instead of reporting the near-zero count."
+      - "Profile EngagementChannelAction__c for the real DTC literals once data lands."
+
+  marketable_patients:
+    intent: "How many patients are marketable by email (valid email + consent)?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_email
+    also_join: unified_individual_to_consent
+    filters:
+      - "ContactPointEmail.is_valid = true"
+      - "ContactPointEmail.email_domain_restricted = false"
+      - "ContactPointConsent.consent_status = '<opt-in-literal>'"
+      - "UnifiedIndividual.retired = false"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    caveats:
+      - "Confirm the DTC consent-status literal — do not reuse the HCP 'IN'/'UNKNOWN' values."
+      - "Add EighteenYearsOld__c / LivesInMassachusetts__c gates if the brand requires them."

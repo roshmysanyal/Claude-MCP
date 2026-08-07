@@ -1,0 +1,11 @@
+{
+  "_comment": "Example config for the Salesforce-HOSTED Data 360 MCP server (data-360-mcp). Cursor form shown: add via Settings > MCP > New MCP Server, then paste this into mcp.json. 'url' = the server URL copied from Setup (sandbox path shown; drop 'sandbox/' for production). 'auth.CLIENT_ID' = the External Client App Consumer Key. Auth is per-user OAuth 2.0 + PKCE handled interactively — NO client secret lives here. For Claude Code use the `claude mcp add --transport http ...` command in 03-connect-claude.md instead. See setup/02-auth-setup.md.",
+  "mcpServers": {
+    "data360": {
+      "url": "https://api.salesforce.com/platform/mcp/v1/sandbox/data/data-360-mcp",
+      "auth": {
+        "CLIENT_ID": "REPLACE_WITH_ECA_CONSUMER_KEY"
+      }
+    }
+  }
+}

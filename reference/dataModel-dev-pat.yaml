@@ -1,0 +1,130 @@
+# =============================================================================
+# Data 360 Data Model — DEV_PAT (Patient development / DEV-PAT)
+# =============================================================================
+# ROUTING
+#   Audience: PATIENT (development). Thinner sibling of DTC (dataModel-dtc.yaml).
+#   Use when the user explicitly asks for DEV_PAT / DEV-PAT / patient development.
+#   Default patient/consumer asks still route to DTC unless DEV_PAT is named.
+#
+# ORG SEED (MCP, 2026-08-07)
+#   Dataspace: DEV_PAT (label DEV-PAT, prefix `dpt_`)
+#   SegmentOn: dpt_UnifiedIndividualPatd__dlm
+#   Identity link: dpt_UnifiedLinkIndividualPatd__dlm
+#   Present: Individual, ContactPointEmail/Phone, PartyIdentification, IR bridges
+#   Absent vs DTC: no BrandProfile, Consent, ConsentPreference, EmailEngagement
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql
+  dataspace: DEV_PAT
+  dataspace_label: DEV-PAT
+  audience: PATIENT
+  anchor: UnifiedIndividual
+
+entities:
+
+  UnifiedIndividual:
+    dmo: dpt_UnifiedIndividualPatd__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Patient
+    status: verified
+    desc: Resolved patient golden record in patient development. Thin field set vs DTC.
+    grain: one row per resolved patient
+    count_key: Id__c
+    primary_key: Id__c
+    fields:
+      unified_record_id: { api_name: Id__c, label: Patient ID, type: Text, status: verified, pii: false }
+      first_name: { api_name: FirstName__c, label: First name, type: Text, status: verified, pii: true }
+      last_name: { api_name: LastName__c, label: Last name, type: Text, status: verified, pii: true }
+      middle_name: { api_name: MiddleName__c, label: Middle name, type: Text, status: verified, pii: true }
+      party_id: { api_name: PartyId__c, label: Party ID, type: Text, status: verified, pii: false }
+      external_source_id: { api_name: ExternalSourceId__c, label: External source ID, type: Text, status: verified, pii: false }
+
+  IdentityLink:
+    dmo: dpt_UnifiedLinkIndividualPatd__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Identity link (internal)
+    status: verified
+    fields:
+      unified_record_id: { api_name: UnifiedRecordId__c, label: Unified patient ID, type: Text, status: verified, pii: false }
+      source_record_id: { api_name: SourceRecordId__c, label: Source patient ID, type: Text, status: verified, pii: false }
+      kq_source_record_id: { api_name: KQ_SourceRecordId__c, label: Key qualifier, type: Text, status: verified, pii: false }
+
+  Individual:
+    dmo: dpt_Individual__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Patient
+    status: verified
+    primary_key: Id__c
+    fields:
+      id: { api_name: Id__c, label: Patient source ID, type: Text, status: verified, pii: false }
+      kq_id: { api_name: KQ_Id__c, label: Key qualifier, type: Text, status: verified, pii: false }
+      first_name: { api_name: FirstName__c, label: First name, type: Text, status: verified, pii: true }
+      last_name: { api_name: LastName__c, label: Last name, type: Text, status: verified, pii: true }
+      middle_name: { api_name: MiddleName__c, label: Middle name, type: Text, status: verified, pii: true }
+      party_id: { api_name: PartyId__c, label: Party ID, type: Text, status: verified, pii: false }
+
+  ContactPointEmail:
+    dmo: dpt_ContactPointEmail__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Email
+    status: verified
+    primary_key: Id__c
+    fields:
+      id: { api_name: Id__c, label: Email contact point ID, type: Text, status: VERIFY, pii: false }
+      party_id: { api_name: PartyId__c, label: Patient ID (link), type: Text, status: VERIFY, pii: false }
+
+  ContactPointPhone:
+    dmo: dpt_ContactPointPhone__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Phone
+    status: verified
+    primary_key: Id__c
+    fields:
+      id: { api_name: Id__c, label: Phone contact point ID, type: Text, status: VERIFY, pii: false }
+      party_id: { api_name: PartyId__c, label: Patient ID (link), type: Text, status: VERIFY, pii: false }
+
+  PartyIdentification:
+    dmo: dpt_PartyIdentification__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Party identification
+    status: verified
+    fields: {}
+
+  UnifiedContactPointEmail:
+    dmo: dpt_UnifiedContactPointEmailPatd__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Unified email
+    status: verified
+    fields: {}
+
+  UnifiedPartyIdentification:
+    dmo: dpt_UnifiedPartyIdentificationPatd__dlm
+    dataspace: DEV_PAT
+    dataspace_label: DEV-PAT
+    label: Unified party identification
+    status: verified
+    fields: {}
+
+relationships:
+  - { name: unified_to_identitylink, status: verified, kind: identity_resolution, from: UnifiedIndividual, to: IdentityLink, from_key: Id__c, to_key: UnifiedRecordId__c, cardinality: one_to_many }
+  - { name: identitylink_to_individual, status: verified, kind: identity_resolution, from: IdentityLink, to: Individual, from_key: SourceRecordId__c, to_key: Id__c, cardinality: many_to_one }
+  - { name: individual_has_email, status: VERIFY, kind: contact_point, from: Individual, to: ContactPointEmail, from_key: Id__c, to_key: PartyId__c, cardinality: one_to_many }
+  - { name: individual_has_phone, status: VERIFY, kind: contact_point, from: Individual, to: ContactPointPhone, from_key: Id__c, to_key: PartyId__c, cardinality: one_to_many }
+
+paths:
+  unified_individual_to_source:
+    from: UnifiedIndividual
+    to: Individual
+    hops: [unified_to_identitylink, identitylink_to_individual]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c

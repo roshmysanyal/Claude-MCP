@@ -1,0 +1,89 @@
+# =============================================================================
+# Data Model index — all dataspaces
+# =============================================================================
+# Seeded 2026-08-07 from d360_dataspace_list + d360_dmo_list / d360_dmo_get.
+# The Skill's "Semantic layer routing" section is the runtime contract; this
+# file is the catalog.
+# =============================================================================
+
+version: 1
+
+dataspaces:
+
+  Development:
+    label: DEV-US
+    prefix: dev_
+    audience: HCP
+    file: dataModel-dev.yaml
+    status: ready
+    segment_on: dev_UnifiedIndividualRs1__dlm
+    note: POC default for HCP counts and segments.
+
+  DTC:
+    label: DTC
+    prefix: DTC_
+    audience: PATIENT
+    file: dataModel-dtc.yaml
+    status: ready
+    segment_on: DTC_UnifiedIndividualDtc__dlm
+    note: Default for patient/consumer asks. Email engagement VERIFY (sparse).
+
+  PRD_US:
+    label: PRD-US
+    prefix: prd_
+    audience: HCP
+    file: dataModel-prd-us.yaml
+    status: ready
+    segment_on: prd_UnifiedIndividualPrd1__dlm
+    note: Production HCP. Explicit request + governance sign-off required.
+
+  STG_US:
+    label: STG-US
+    prefix: stg_
+    audience: HCP
+    file: dataModel-stg-us.yaml
+    status: ready
+    segment_on: stg_UnifiedIndividual__dlm
+    note: Staging HCP. Identity link DMO is stg_IndividualIdentityLink__dlm.
+
+  DEV_PAT:
+    label: DEV-PAT
+    prefix: dpt_
+    audience: PATIENT
+    file: dataModel-dev-pat.yaml
+    status: ready
+    segment_on: dpt_UnifiedIndividualPatd__dlm
+    note: Patient development. Thinner than DTC (no BrandProfile/Consent).
+
+  PRD_PAT:
+    label: PRD-PAT
+    prefix: ppt_
+    audience: PATIENT
+    file: dataModel-prd-pat.yaml
+    status: empty
+    segment_on: null
+    note: No profile DMOs at seed — currency rates only. Do not query for audiences.
+
+  LAB:
+    label: LAB
+    prefix: LAB_
+    audience: HCP
+    file: dataModel-lab.yaml
+    status: ready
+    segment_on: LAB_Individual__dlm
+    note: No IR/unified layer. Anchor on Individual directly.
+
+  default:
+    label: default
+    prefix: ""
+    audience: UNKNOWN
+    file: dataModel-default.yaml
+    status: inventory
+    segment_on: null
+    note: Standard ssot__ catalog; Individual not enabled/segmentable. Avoid for POC.
+
+routing_defaults:
+  HCP: Development
+  PATIENT: DTC
+  explicit_dataspace_wins: true
+  ambiguous_audience: ask

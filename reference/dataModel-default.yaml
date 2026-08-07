@@ -1,0 +1,95 @@
+# =============================================================================
+# Data 360 Data Model — default (org default dataspace)
+# =============================================================================
+# ROUTING
+#   Use only when the user explicitly names the `default` dataspace.
+#   POC HCP work uses Development; patient work uses DTC — never silently
+#   fall back here.
+#
+# ORG SEED (MCP, 2026-08-07)
+#   Dataspace: default (label default, no prefix — `ssot__*` standard model)
+#   Catalog is the Salesforce standard Data Cloud data model (400+ DMOs across
+#   pages). Most are schema-only / not enabled for this org.
+#
+#   Key observation: ssot__Individual__dlm exists but isEnabled=false and
+#   isSegmentable=false at seed. There is no Pfizer-custom HCP IR layer here
+#   (no UnifiedIndividual / IdentityLink equivalent with Pfizer fields).
+#
+#   Treat this file as an inventory + pointer, not a ready segment model.
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql
+  dataspace: default
+  dataspace_label: default
+  audience: UNKNOWN
+  anchor: Individual
+  status: INVENTORY
+  note: >-
+    Standard ssot__ catalog. Individual is present but not enabled/segmentable.
+    Prefer Development (HCP) or DTC (patient) for real work.
+
+entities:
+
+  Individual:
+    dmo: ssot__Individual__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Individual
+    status: verified
+    desc: >-
+      Standard Individual DMO. isEnabled=false / isSegmentable=false at seed —
+      do not build POC segments here.
+    primary_key: ssot__Id__c
+    count_key: ssot__Id__c
+    fields:
+      id: { api_name: ssot__Id__c, label: Individual ID, type: Text, status: verified, pii: false }
+      first_name: { api_name: ssot__FirstName__c, label: First name, type: Text, status: verified, pii: true }
+      last_name: { api_name: ssot__LastName__c, label: Last name, type: Text, status: verified, pii: true }
+      salutation: { api_name: ssot__Salutation__c, label: Salutation, type: Text, status: verified, pii: false }
+      party_id: { api_name: ssot__PartyId__c, label: Party ID, type: Text, status: verified, pii: false }
+
+  ContactPointEmail:
+    dmo: ssot__ContactPointEmail__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Email
+    status: verified
+    fields: {}
+
+  ContactPointAddress:
+    dmo: ssot__ContactPointAddress__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Address
+    status: verified
+    fields: {}
+
+  ContactPointConsent:
+    dmo: ssot__ContactPointConsent__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Consent
+    status: verified
+    fields: {}
+
+  EmailEngagement:
+    dmo: ssot__EmailEngagement__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Email engagement
+    status: verified
+    fields: {}
+
+  Brand:
+    dmo: ssot__Brand__dlm
+    dataspace: default
+    dataspace_label: default
+    label: Brand
+    status: verified
+    fields: {}
+
+relationships: []
+paths: {}

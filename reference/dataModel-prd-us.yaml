@@ -1,0 +1,1603 @@
+# =============================================================================
+# Data 360 Data Model — PRD-US (HCP semantic layer)
+# File: dataModel-prd-us.yaml
+# =============================================================================
+# ROUTING
+#   This file is the HCP model for dataspace PRD_US (PRD-US, `prd_`).
+#   Sibling of Development (dataModel-dev.yaml). Route here when the user explicitly asks for PRD_US / PRD-US.
+#   POC default remains Development — do not use this file unless named.
+#   Catalog of all spaces: dataModel-index.yaml.
+#   Ambiguous audience -> ask, don't guess. Never join across dataspaces.
+#   See the Skill's "Semantic layer routing" section.
+#
+# PII PASS (2026-08-07, mirrored from dataModel-dev.yaml)
+#   pii:true  = filter only; never return literals / never SELECT the column in
+#               marketer-facing output. Counts and membership lists of opaque IDs OK.
+#   pii:false = safe to filter; categorical non-PII may be profiled / shown in
+#               aggregates. Fields marked review: need architect confirmation.
+#   COUNT RULE: HCP count answers return the number only — never accompany a
+#               count with PII sample rows. Applies in this PRD_US dataspace the
+#               same as Development / STG_US — production is not a preview of people.
+#               See the Skill "PII-safe counts" section.
+#
+# PURPOSE
+#   Single source of truth for the Data 360 data model as the agent should use it:
+#     (a) FIELD METADATA  — the real DMO + field API names, data types, PII flags,
+#         and what each field means in business terms (the "which field do I
+#         filter on?" answer).
+#     (b) RELATIONSHIPS    — the declared join graph: edges, join keys, cardinality,
+#         and reusable multi-hop paths (the "how do I join them?" answer).
+#
+#   The agent must build queries from THIS FILE, not by inferring from field names.
+#   In the SSOT model an "...Id" suffix does NOT imply a foreign key, and real
+#   relationships are frequently on fields that carry no "Id" at all. Guessing
+#   from names produces confident-but-wrong joins and silent double-counting.
+#
+# HOW IT'S POPULATED / VERIFIED
+#   - Field-level facts (dmo, api_name, type, primary_key) can be SEEDED and
+#     CONFIRMED from the org via the MCP Query family's metadata query (list DMOs
+#     + describe fields). This half is machine-verifiable.
+#   - Relationships, cardinality, identity-resolution routing, count semantics,
+#     PII flags, and business descriptions are HUMAN-CURATED and architect-verified.
+#     The metadata API does not reliably emit these.
+#   See:  using-the-data-model.md            (how the agent uses this file)
+#         before-using-and-on-data-model-changes.md  (how to verify / maintain it)
+#
+# ORG SEED (MCP, 2026-08-07) — enriched from dataModel-dev.yaml PII/desc/sampleValues pass
+#   Dataspace: PRD_US (label PRD-US, prefix `prd_`)
+#   DMO inventory confirmed via MCP (2026-08-07). PII/desc/sampleValues mirrored
+#   from dataModel-dev.yaml; re-profile PRD literals before treating as authoritative.
+#   SegmentOn: prd_UnifiedIndividualPrd1__dlm
+#   Identity link: prd_UnifiedLinkIndividualPrd1__dlm
+#   Includes LegalExclusion (PRD-specific vs Development). Field api_name/type
+#   remapped from Development; pii/desc remain human-curated.
+#
+# IDENTITY RESOLUTION RULE (important)
+#   You CANNOT join the unified profile directly to a source individual. You must
+#   traverse the identity link DMO:
+#       UnifiedIndividual.Id__c
+#           = IdentityLink.UnifiedRecordId__c
+#       IdentityLink.SourceRecordId__c
+#           = Individual.Id__c
+#
+# STATUS LEGEND (per entity / field / relationship)
+#   verified   -> confirmed against the live org (metadata query and/or SME)
+#   VERIFY     -> placeholder; confirm the DMO/field/type/cardinality before trusting
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql          # Data 360 Query API v2 dialect
+  dataspace: PRD_US
+  dataspace_label: PRD-US
+  audience: HCP
+  anchor: UnifiedIndividual    # default "people" entity for counts
+  governance: >-
+    Production dataspace. Confirm governance sign-off before any
+    create/publish/activate. Prefer Development for POC counts.
+  # Counting rule: a person = one distinct anchor count_key, regardless of how
+  # many child rows (Rx, engagements, accounts) they fan out to.
+
+# -----------------------------------------------------------------------------
+# ENTITIES  (nodes)  — DMO + field metadata
+# -----------------------------------------------------------------------------
+# Per entity:  dmo, dataspace, dataspace_label, label, status, desc, grain,
+#              count_key/primary_key
+# Per field:   api_name (real column), label, type, status, pii (bool), desc, sampleValues?
+#              -> `type` and `api_name` are metadata-query verifiable
+#              -> `desc` and `pii` are human-curated context
+#              -> `label` = the business-friendly display name shown to MARKETERS.
+#              -> `sampleValues` = illustrative literals for low-cardinality non-PII
+#                 categorical fields only. NEVER on PII / free-text / timestamps / IDs.
+#              -> `dataspace` / `dataspace_label` = live org dataSpaceName + UI label
+#                 (confirmed via d360_dmo_list / d360_dmo_get). Queries MUST pass
+#                 dataspace=PRD_US for these DMOs.
+# -----------------------------------------------------------------------------
+entities:
+
+  # ---- Unified/resolved profile --------------------------------------------
+  UnifiedIndividual:
+    dmo: prd_UnifiedIndividualPrd1__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: HCP
+    status: verified            # DMO exists + fields from d360_dmo_get 2026-08-06
+    desc: >-
+      Resolved "golden" HCP record (IR ruleset Prd1) in the PRD_US dataspace;
+      the anchor for all people counts.
+    grain: one row per resolved person
+    count_key: Id__c            # COUNT(DISTINCT this) == # of people
+    primary_key: Id__c
+    fields:
+      unified_record_id:
+        api_name: Id__c
+        label: HCP ID
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Resolved-person primary key (IR ruleset Prd1). Join target from
+          IdentityLink.UnifiedRecordId__c. Use as COUNT(DISTINCT …) count key
+          and as SegmentOn PK when segmenting on the unified profile.
+      first_name:
+        api_name: FirstName__c
+        label: First name
+        type: Text
+        status: verified
+        pii: true
+        desc: Given name of the HCP. Filter only — never return in results or dumps.
+      last_name:
+        api_name: LastName__c
+        label: Last name
+        type: Text
+        status: verified
+        pii: true
+        desc: Family name of the HCP. Filter only — never return in results or dumps.
+      salutation:
+        api_name: Salutation__c
+        label: Salutation
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Honorific (Mr., Mrs., Dr., …). Safe to filter and to show in aggregate
+          breakdowns. Not a direct identifier on its own.
+      birth_date:
+        api_name: BirthDate__c
+        label: Date of birth
+        type: DateTime
+        status: verified
+        pii: true
+        desc: >-
+          HCP date of birth. Direct personal attribute — filter only (e.g. age
+          windows if ever needed); never return the date itself.
+      primary_specialty:
+        api_name: PrimarySpecialty__c
+        label: Primary specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Clinical specialty label on the resolved profile (e.g. Oncology). Use
+          for specialty-based HCP counts. Observed all-null at seed (2026-08-06);
+          keep for filters once populated.
+      primary_specialty_code:
+        api_name: PrimarySpecialtyCode__c
+        label: Primary specialty code
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Coded form of primary specialty. Prefer this for exact filters when
+          codes are known; use PrimarySpecialty__c for label matching.
+      secondary_specialty:
+        api_name: SecondarySpecialty__c
+        label: Secondary specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: Secondary clinical specialty label on the resolved profile.
+      profession:
+        api_name: Profession__c
+        label: Profession
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Profession on the HCP profile (e.g. Physician, NP, PA). Categorical —
+          safe to filter and profile.
+      hcp_type:
+        api_name: HcpType__c
+        label: HCP type
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          HCP type classifier on the resolved profile. Schema present; **no
+          values populated** in PRD_US at profile (2026-08-07) —
+          Unified has '' on all unified rows; Individual is NULL on all source.
+          Cannot filter on this until the source feed lands.
+        review: desc
+        review_reason: Confirm intended business values once data is loaded (field currently empty org-wide).
+      hcp_status_code:
+        api_name: HcpStatusCode__c
+        label: HCP status
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Lifecycle/status code for the HCP. Schema present; **no values
+          populated** in PRD_US at profile (2026-08-07) — same
+          empty pattern as HcpType__c. Cannot use for "eligible to target"
+          until data lands.
+        review: desc
+        review_reason: Confirm intended status values (e.g. Active/Inactive) once the feed is populated.
+      hcp_suppression:
+        api_name: HcpSuppression__c
+        label: HCP suppression
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Master suppression flag on the HCP profile. When true, exclude from
+          marketable segments (see Development DEV_CIA_HCP_Marketable_Email pattern).
+        sampleValues: [true, false]
+      pfizer_customer_id:
+        api_name: PfizerCustomerId__c
+        label: Pfizer customer ID
+        type: Text
+        status: verified
+        pii: true
+        desc: >-
+          Pfizer customer identifier for the HCP. Treat as a personal identifier —
+          filter / join only; never return the value.
+      pfizer_employee:
+        api_name: PfizerEmployee__c
+        label: Pfizer employee
+        type: Boolean
+        status: verified
+        pii: false
+        desc: True when the person is a Pfizer employee. Commonly excluded from external audiences.
+        sampleValues: [true, false]
+      registered_user:
+        api_name: RegisteredUser__c
+        label: Registered user
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Whether the HCP has a registered PfizerPro digital account.
+          Confirmed (architect, 2026-08-07): registration system = PfizerPro.
+        sampleValues: [true, false]
+      test_user:
+        api_name: TestUser__c
+        label: Test user
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Test-user flag — typically exclude from production counts and segments.
+        sampleValues: [true, false]
+
+  # ---- Identity Resolution link ---------------------------------------------
+  IdentityLink:
+    dmo: prd_UnifiedLinkIndividualPrd1__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Identity link (internal)          # plumbing — not shown to marketers
+    status: verified
+    desc: >-
+      Bridge between the unified profile and its source records (IR ruleset Prd1).
+      All unified<->source joins MUST route through this DMO — never join a unified
+      profile directly to a source record.
+    grain: one row per (unified record <-> source record) mapping
+    fields:
+      unified_record_id:
+        api_name: UnifiedRecordId__c
+        label: Unified HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: Links to UnifiedIndividual.Id__c. Opaque IR key — not a business identifier.
+      source_record_id:
+        api_name: SourceRecordId__c
+        label: Source HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: Links to Individual.Id__c. Opaque IR key — not a business identifier.
+      data_source_id:
+        api_name: DataSourceId__c
+        label: Data source
+        type: Text
+        status: verified
+        pii: false
+        desc: Source system for this link row (part of the bridge composite key).
+      data_source_object_id:
+        api_name: DataSourceObjectId__c
+        label: Data source object
+        type: Text
+        status: verified
+        pii: false
+        desc: Source object for this link row (part of the bridge composite key).
+
+  # ---- Source-level individual ----------------------------------------------
+  Individual:
+    dmo: prd_Individual__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: HCP
+    status: verified
+    desc: >-
+      Source-level HCP record (pre-resolution) in PRD_US; carries the HCP
+      attributes used in filters. row counts differ from Development — re-profile in PRD_US.
+    primary_key: Id__c
+    grain: one row per source-level individual
+    fields:
+      id:
+        api_name: Id__c
+        label: HCP ID
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Source individual primary key. Join target from
+          IdentityLink.SourceRecordId__c and from child PartyId / IndividualId
+          fields. When SegmentOn = Individual, project Id__c plus KQ_Id__c.
+      party_id:
+        api_name: PartyId__c
+        label: Party ID
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Party reference on the individual. Distinct from Id__c in some mappings;
+          contact points in this org join on Individual.Id__c via PartyId__c on
+          the child (confirmed 2026-08-06).
+      birth_date:
+        api_name: BirthDate__c
+        label: Date of birth
+        type: DateTime
+        status: verified
+        pii: true
+        desc: HCP date of birth. Filter only — never return.
+      first_name:
+        api_name: FirstName__c
+        label: First name
+        type: Text
+        status: verified
+        pii: true
+        desc: Given name. Filter only — never return.
+      last_name:
+        api_name: LastName__c
+        label: Last name
+        type: Text
+        status: verified
+        pii: true
+        desc: Family name. Filter only — never return.
+      middle_name:
+        api_name: MiddleName__c
+        label: Middle name
+        type: Text
+        status: verified
+        pii: true
+        desc: Middle name. Filter only — never return.
+      salutation:
+        api_name: Salutation__c
+        label: Salutation
+        type: Text
+        status: verified
+        pii: false
+        desc: Honorific (Mr., Mrs., Ms., Dr., …). Safe to filter and aggregate.
+      primary_specialty:
+        api_name: PrimarySpecialty__c
+        label: Primary specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Clinical specialty on the source record. All-null at seed (2026-08-06)
+          across source rows — specialty filters will not match until data lands.
+      primary_specialty_code:
+        api_name: PrimarySpecialtyCode__c
+        label: Primary specialty code
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded primary specialty. Prefer for exact-match filters when codes are known.
+      secondary_specialty:
+        api_name: SecondarySpecialty__c
+        label: Secondary specialty
+        type: Text
+        status: verified
+        pii: false
+        desc: Secondary clinical specialty label.
+      secondary_specialty_code:
+        api_name: SecondarySpecialtyCode__c
+        label: Secondary specialty code
+        type: Text
+        status: verified
+        pii: false
+        desc: Coded secondary specialty.
+      profession:
+        api_name: Profession__c
+        label: Profession
+        type: Text
+        status: verified
+        pii: false
+        desc: Profession on the source HCP record (Physician, NP, PA, …).
+      hcp_type:
+        api_name: HcpType__c
+        label: HCP type
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          HCP type classifier on the source record. **All NULL** across source
+          Individual rows in Development and PRD_US (2026-08-07).
+        review: desc
+        review_reason: Same as UnifiedIndividual.HcpType__c — confirm business values once populated.
+      hcp_status_code:
+        api_name: HcpStatusCode__c
+        label: HCP status
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          HCP lifecycle/status code on the source record. **All NULL** across
+          source Individual rows in Development and PRD_US (2026-08-07).
+        review: desc
+        review_reason: Same as UnifiedIndividual.HcpStatusCode__c — confirm eligible values once populated.
+      hcp_suppression:
+        api_name: HcpSuppression__c
+        label: HCP suppression
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Suppression flag on the source record. Exclude when true for marketable audiences.
+        sampleValues: [true, false]
+      pfizer_customer_id:
+        api_name: PfizerCustomerId__c
+        label: Pfizer customer ID
+        type: Text
+        status: verified
+        pii: true
+        desc: Pfizer customer identifier. Personal identifier — filter/join only; never return.
+      pfizer_employee:
+        api_name: PfizerEmployee__c
+        label: Pfizer employee
+        type: Boolean
+        status: verified
+        pii: false
+        desc: True when the person is a Pfizer employee. Commonly excluded from external audiences.
+        sampleValues: [true, false]
+      registered_user:
+        api_name: RegisteredUser__c
+        label: Registered user
+        type: Boolean
+        status: verified
+        pii: false
+        desc: >-
+          Whether the HCP has a registered PfizerPro digital account.
+          Confirmed (architect, 2026-08-07): registration system = PfizerPro.
+        sampleValues: [true, false]
+      test_user:
+        api_name: TestUser__c
+        label: Test user
+        type: Boolean
+        status: verified
+        pii: false
+        desc: Test-user flag — typically exclude from production counts and segments.
+        sampleValues: [true, false]
+      validation_status:
+        api_name: ValidationStatus__c
+        label: Validation status
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Profile validation status from the source system. **Unpopulated** at
+          seed (Individual NULL × 1.51M; Unified '' × 1.09M). Meaning of each
+          status still TBD — do not filter until values and semantics are known.
+        review: desc
+        review_reason: >-
+          Architect deferred — confirm meaning of each ValidationStatus__c value
+          once the field is populated (valid / pending / rejected / …).
+      gender:
+        api_name: GenderId__c
+        label: Gender
+        type: Text
+        status: verified
+        pii: true
+        desc: >-
+          Gender code/id. Treat as personal attribute — filter only; never return
+          or dump value breakdowns that could be joined back to individuals.
+
+  # ---- Contact point: email -------------------------------------------------
+  ContactPointEmail:
+    dmo: prd_ContactPointEmail__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Email
+    status: verified
+    optional: true
+    desc: >-
+      Email contact points attached to the source Individual via PartyId.
+      One person can have many. Source of "has email". Opt-in/out is NOT on this
+      DMO in PRD_US — see ContactPointConsent / ConsentPreference / EmailEngagement.
+    primary_key: Id__c
+    grain: one row per email contact point
+    fields:
+      id:
+        api_name: Id__c
+        label: Email contact point ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Contact-point primary key. Opaque system ID — safe as a join key.
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: Links to Individual.Id__c (party-linking pattern; join confirmed 2026-08-06).
+      email_address:
+        api_name: EmailAddress__c
+        label: Email address
+        type: Text
+        status: verified
+        pii: true
+        desc: >-
+          Full email address. Use for existence checks ("has email") via joins /
+          IS NOT NULL — never SELECT or return the address itself.
+      email_domain:
+        api_name: EmailDomain__c
+        label: Email domain
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Domain portion of the email (e.g. hospital.org). Used for
+          test/internal-domain exclusions. Not a direct identifier on its own.
+        review: pii
+        review_reason: >-
+          Confirm org policy — personal domains (gmail.com) are usually fine to
+          aggregate; rare custom domains could be identifying for small practices.
+      is_active:
+        api_name: IsActive__c
+        label: Active
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Active flag on the email contact point (stored as Text, not Boolean).
+          Architect guidance (2026-08-07): expect Yes / True style literals.
+          **Observed at seed:** all NULL across email email rows — no live
+          vocabulary yet. Prefer PrimaryFlag__c for "primary email" until
+          IsActive is populated.
+        sampleValues: ["Yes", "True"]
+        review: desc
+        review_reason: >-
+          Re-profile when IsActive__c is populated; confirm casing
+          (Yes/True/true/TRUE) and inactive counterpart (No/False).
+      primary_flag:
+        api_name: PrimaryFlag__c
+        label: Primary email
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Whether this is the primary email contact point (stored as Text).
+          Architect guidance (2026-08-07): Yes or True.
+          **Observed at seed:** every email row is '1' (email). CIA reference
+          segments historically filter PrimaryFlag__c = 'true' — treat '1' /
+          'true' / 'True' / 'Yes' as primary until a single literal is locked.
+        sampleValues: ["1", "true", "True", "Yes"]
+        review: desc
+        review_reason: >-
+          Lock the canonical primary literal. Live data = '1'; CIA segments use
+          'true'; architect said Yes/True. Update sampleValues + segment recipes
+          once decided.
+
+  # ---- Contact point: address -----------------------------------------------
+  ContactPointAddress:
+    dmo: prd_ContactPointAddress__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Address
+    status: verified
+    desc: >-
+      Postal/geographic contact points attached to the source Individual via PartyId.
+      State/region lives here (StateProvinceId__c) — NOT on Individual.
+      Schema mapped; 0 rows at seed (2026-08-06) — state filters will return 0 until data lands.
+    primary_key: Id__c
+    grain: one row per address contact point
+    fields:
+      id:
+        api_name: Id__c
+        label: Address contact point ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Contact-point primary key. Opaque system ID — safe as a join key.
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: Links to Individual.Id__c (party-linking pattern).
+      state:
+        api_name: StateProvinceId__c
+        label: State/region
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          State/region on the address (NOT on Individual). Map spoken names to
+          stored codes ("Utah" → 'UT') once values are observed. Empty table at
+          seed (2026-08-06) — state filters return 0 until address data lands.
+      country:
+        api_name: CountryId__c
+        label: Country
+        type: Text
+        status: verified
+        pii: false
+        desc: Country on the address. Safe to filter; VERIFY stored codes (US vs USA).
+      city:
+        api_name: CityId__c
+        label: City
+        type: Text
+        status: verified
+        pii: false
+        desc: City on the address. Safe for coarse filters; avoid returning with other identifiers.
+        review: pii
+        review_reason: >-
+          City alone is usually non-PII; confirm whether your classification
+          treats city + specialty (or small towns) as sensitive.
+      postal_code:
+        api_name: PostalCodeId__c
+        label: Postal code
+        type: Text
+        status: verified
+        pii: true
+        desc: >-
+          Postal/ZIP code. Quasi-identifier — OK to filter (e.g. radius / ZIP list
+          asks) but never return the code alongside other person attributes.
+        review: pii
+        review_reason: >-
+          Marked pii:true conservatively. Confirm whether ZIP5-only aggregates
+          are allowed in marketer-facing breakdowns (some orgs allow ZIP3/ZIP5).
+      address_line_1:
+        api_name: AddressLine1__c
+        label: Address line 1
+        type: Text
+        status: verified
+        pii: true
+        desc: Street address. Direct PII — never return; filter only if governance explicitly allows.
+      is_active:
+        api_name: IsActive__c
+        label: Active
+        type: Text
+        status: verified
+        pii: false
+        desc: Active flag on the address contact point (stored as Text).
+      primary_flag:
+        api_name: PrimaryFlag__c
+        label: Primary address
+        type: Text
+        status: verified
+        pii: false
+        desc: Whether this is the primary address contact point.
+
+  # ---- Contact point consent (opt-in / opt-out) ------------------------------
+  ContactPointConsent:
+    dmo: prd_ContactPointConsent__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Consent
+    status: verified
+    optional: true
+    desc: >-
+      Consent granted by a party for a specific contact point (where/when/how/purpose).
+      Preferred source of "opted-in / emailable" once populated. 0 rows at seed
+      (2026-08-06) — until then, EmailEngagement "Opt Out" action is the only observed
+      opt-out signal in PRD_US.
+    primary_key: Id__c
+    grain: one row per contact-point consent record
+    fields:
+      id:
+        api_name: Id__c
+        label: Consent ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Consent primary key.
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      contact_point_id:
+        api_name: ContactPointId__c
+        label: Contact point ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> ContactPointEmail.Id__c (or other contact point).
+      consent_status:
+        api_name: ConsentStatusId__c
+        label: Consent status
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Consent status. Opted-in / emailable in live CIA segments uses
+          ConsentStatusId__c IN ('IN', 'UNKNOWN') — harvested from
+          DEV_CIA_Nurtec_HCP_Segmentation / DEV_CIA_HCP_Marketable_Email (Development recipes)
+          (2026-08-06). ContactPointConsent may be empty until data lands.
+        sampleValues: ["IN", "UNKNOWN"]
+      consent_captured_date:
+        api_name: ConsentCapturedDateTime__c
+        label: Consent captured date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the consent record was captured. Useful for recency of opt-in.
+      effective_from:
+        api_name: EffectiveFromDate__c
+        label: Effective from
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Timestamp from which this consent status applies.
+      effective_to:
+        api_name: EffectiveToDate__c
+        label: Effective to
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Timestamp until which this consent status applies (if set).
+
+  # ---- Consent preference ---------------------------------------------------
+  ConsentPreference:
+    dmo: prd_ConsentPreference__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Consent preference
+    status: verified
+    optional: true
+    desc: >-
+      Preference name/type/value rows tied to a contact-point consent.
+      Schema mapped; 0 rows at seed (2026-08-06).
+    primary_key: ConsentPreferenceId__c
+    grain: one row per preference
+    fields:
+      id:
+        api_name: ConsentPreferenceId__c
+        label: Consent preference ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Preference primary key.
+      contact_point_consent_id:
+        api_name: ContactPointConsentId__c
+        label: Contact point consent ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> ContactPointConsent.Id__c
+      preference_name:
+        api_name: PreferenceName__c
+        label: Preference name
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Brand or topic the preference applies to. Live Nurtec segment filters
+          PreferenceName IN ('ALL','NURTEC').
+        sampleValues: ["ALL", "NURTEC"]
+      preference_type:
+        api_name: PreferenceType__c
+        label: Preference type
+        type: Text
+        status: verified
+        pii: false
+        desc: Preference category. Live brand-consent segments use 'Brand'.
+        sampleValues: ["Brand"]
+      preference_value:
+        api_name: PreferenceValue__c
+        label: Preference value
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Opt-in/out value for the preference. Opted-in brand preference uses
+          'IN' (from DEV_CIA_Nurtec_HCP_Segmentation pattern in Development).
+        sampleValues: ["IN"]
+
+  # ---- Website engagement events --------------------------------------------
+  WebsiteEngagement:
+    dmo: prd_WebsiteEngagement__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Website engagement
+    status: verified
+    desc: >-
+      Website engagement events per person; source of "visited the website".
+      Schema mapped; 0 rows at seed (2026-08-06). Has Indication + TherapeuticArea
+      for site/brand context once populated.
+    primary_key: Id__c
+    grain: one row per website engagement event
+    fields:
+      id:
+        api_name: Id__c
+        label: Website engagement ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Event primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      engagement_date:
+        api_name: EngagementDateTm__c
+        label: Engagement date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Event timestamp — drives "visited within last N days" windows.
+      engagement_type:
+        api_name: EngagementTypeId__c
+        label: Engagement type
+        type: Text
+        status: verified
+        pii: false
+        desc: Engagement type classifier. VERIFY real literals once website data lands.
+        review: desc
+        review_reason: Profile EngagementTypeId__c when WebsiteEngagement is populated.
+      page_name:
+        api_name: PageName__c
+        label: Page name
+        type: Text
+        status: verified
+        pii: false
+        desc: Human-readable page name for the visit. Safe categorical for site/page filters.
+      page_url:
+        api_name: PageURL__c
+        label: Page URL
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Page URL for the visit. Useful to distinguish corporate vs brand sites.
+          Prefer filtering on host/path patterns — do not return full URLs if they
+          may contain query-string identifiers.
+        review: pii
+        review_reason: >-
+          Confirm whether PageURL__c ever carries query params with HCP/email IDs.
+          If yes, flip to pii:true (filter-only).
+      indication:
+        api_name: Indication__c
+        label: Indication
+        type: Text
+        status: verified
+        pii: false
+        desc: Clinical indication associated with the web engagement (custom field).
+      therapeutic_area:
+        api_name: TherapeuticArea__c
+        label: Therapeutic area
+        type: Text
+        status: verified
+        pii: false
+        desc: Therapeutic area associated with the web engagement (custom field).
+      country:
+        api_name: CountryId__c
+        label: Country
+        type: Text
+        status: verified
+        pii: false
+        desc: Country captured on the engagement event (not the profile address).
+
+  # ---- Email engagement events ----------------------------------------------
+  EmailEngagement:
+    dmo: prd_EmailEngagement__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Email engagement
+    status: verified
+    desc: >-
+      Email engagement events (send/open/click/bounce/opt-out/complaint) per person.
+      ~7.57M rows at seed. Also an interim opt-out signal via EngagementChannelActionId
+      = 'Opt Out' while ContactPointConsent is empty.
+    primary_key: Id__c
+    grain: one row per email engagement event
+    fields:
+      id:
+        api_name: Id__c
+        label: Email engagement ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Event primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c (join confirmed 2026-08-06).
+      engagement_date:
+        api_name: EngagementDateTm__c
+        label: Engagement date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: Event timestamp — drives "opened/clicked in last N days" windows.
+      engagement_channel_action:
+        api_name: EngagementChannelActionId__c
+        label: Engagement action
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Action on the email. Observed 2026-08-06 (PRD_US): Send, Open,
+          Click, Bounce, Opt Out, Complaint. Interim opt-out signal while
+          ContactPointConsent is empty.
+        sampleValues: ["Send", "Open", "Click", "Bounce", "Opt Out", "Complaint"]
+      engagement_channel:
+        api_name: EngagementChannelId__c
+        label: Engagement channel
+        type: Text
+        status: verified
+        pii: false
+        desc: Channel id for the engagement event.
+      subject_line:
+        api_name: SubjectLineTxt__c
+        label: Subject line
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Email subject line text. Marketing content — usually safe to filter.
+          Do not return if subjects are personalized with names.
+        review: pii
+        review_reason: Confirm subjects are never mail-merge personalized with HCP names.
+      state:
+        api_name: StateProvinceTxt__c
+        label: State/region (on event)
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          State/region text on the engagement event. Empty at seed; prefer
+          ContactPointAddress.state when address data is present.
+      country:
+        api_name: CountryId__c
+        label: Country
+        type: Text
+        status: verified
+        pii: false
+        desc: Country on the engagement event.
+
+  # ---- Prescription / NBRx (aggregated) -------------------------------------
+  NBRxAggregated:
+    dmo: prd_NBRxAggregated__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: New-to-brand Rx (aggregated)
+    status: verified
+    desc: >-
+      Aggregated NBRx counts by HCP and brand. Replaces the generic Rx__dlm
+      placeholder. Schema mapped; 0 rows at seed (2026-08-06).
+    primary_key: PrimaryId__c
+    grain: one row per (individual, brand) NBRx aggregate
+    fields:
+      id:
+        api_name: PrimaryId__c
+        label: NBRx row ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Aggregate row primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: Prescribing HCP (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      brand:
+        api_name: Brand__c
+        label: Product/brand
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Brand/product on the NBRx aggregate. Filter for "wrote Rx for <brand>".
+          VERIFY allowed literals once data lands (table empty at seed).
+        sampleValues: ["<brand-a>", "<brand-b>"]  # placeholders until data populates
+        review: desc
+        review_reason: Deferred (architect 2026-08-07) — re-profile Brand__c literals once NBRx data lands.
+      nbrx_count:
+        api_name: NBRxCount__c
+        label: NBRx count
+        type: Number
+        status: verified
+        pii: false
+        desc: >-
+          Aggregated new-to-brand Rx count for the (HCP, brand) pair. Use for
+          volume thresholds (e.g. NBRxCount__c >= 1); never treat as personal health
+          data of a patient — this is HCP prescribing activity.
+
+  # ---- HCP segmentation attributes ------------------------------------------
+  HcpSegmentation:
+    dmo: prd_HcpSegmentation__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: HCP segmentation
+    status: verified
+    optional: true
+    desc: >-
+      Brand / indication / segment-type attributes per HCP. Schema mapped;
+      0 rows at seed (2026-08-06). Candidate source for brand affiliation once populated.
+    primary_key: PrimaryId__c
+    grain: one row per HCP segmentation attribute record
+    fields:
+      id:
+        api_name: PrimaryId__c
+        label: Segmentation row ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Row primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      brand:
+        api_name: Brand__c
+        label: Brand
+        type: Text
+        status: verified
+        pii: false
+        desc: Brand on the segmentation row. Candidate source for brand affiliation once populated.
+        review: desc
+        review_reason: Deferred (architect 2026-08-07) — confirm Brand__c literals once HcpSegmentation is populated.
+      indication:
+        api_name: Indication__c
+        label: Indication
+        type: Text
+        status: verified
+        pii: false
+        desc: Indication on the segmentation row.
+      segment_type:
+        api_name: SegmentType__c
+        label: Segment type
+        type: Text
+        status: verified
+        pii: false
+        desc: Segment type classifier (e.g. decile / targeting tier). VERIFY literals.
+        review: desc
+        review_reason: Deferred (architect 2026-08-07) — confirm SegmentType__c / SegmentSubType__c vocabulary once data lands.
+      segment_sub_type:
+        api_name: SegmentSubType__c
+        label: Segment sub-type
+        type: Text
+        status: verified
+        pii: false
+        desc: Segment sub-type classifier.
+      segment_value:
+        api_name: SegmentValue__c
+        label: Segment value
+        type: Text
+        status: verified
+        pii: false
+        desc: Primary segment value literal for the HCP/brand/type row.
+      segment_2_value:
+        api_name: Segment2Value__c
+        label: Segment 2 value
+        type: Text
+        status: verified
+        pii: false
+        desc: Secondary segment value literal on the same row.
+      as_of_date:
+        api_name: Date__c
+        label: As-of date
+        type: Date
+        status: verified
+        pii: false
+        desc: Date the segmentation attribute applies / was scored.
+
+  # ---- Brand unsubscribe (header) -------------------------------------------
+  HeaderUnsubscribeBrand:
+    dmo: prd_HeaderUnsubscribeBrand__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Brand unsubscribe (header)
+    status: verified
+    optional: true
+    desc: >-
+      SFMC header-unsubscribe brand events. Source of brand-level unsubscribe /
+      consent status from email headers.
+    primary_key: HeaderUnsubscribeId__c
+    grain: one row per header-unsubscribe event
+    fields:
+      id:
+        api_name: HeaderUnsubscribeId__c
+        label: Header unsubscribe ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Event primary key.
+      individual_id:
+        api_name: IndividualId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      email_address:
+        api_name: EmailAddress__c
+        label: Email address
+        type: Text
+        status: verified
+        pii: true
+        desc: Email on the unsubscribe event. Never return — filter/join only.
+      business_unit:
+        api_name: BusinessUnit__c
+        label: Business unit
+        type: Text
+        status: verified
+        pii: false
+        desc: SFMC business unit on the unsubscribe event.
+      consent_status:
+        api_name: ConsentStatus__c
+        label: Consent status
+        type: Text
+        status: verified
+        pii: false
+        desc: Consent/unsubscribe status from the header event. VERIFY literals.
+        review: desc
+        review_reason: >-
+          Deferred (architect 2026-08-07). Same family as contact-point consent,
+          but exact code parity with ConsentStatusId__c ('IN'/'UNKNOWN') is TBD.
+      name:
+        api_name: Name__c
+        label: Brand / name
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Brand or unsubscribe-list name on the event (not a person name).
+          VERIFY literals once profiled.
+        review: desc
+        review_reason: >-
+          Deferred (architect 2026-08-07). Tentative: always brand/list name, never
+          a person — reconfirm when profiling Name__c.
+      tracking_code:
+        api_name: TrackingCode__c
+        label: Tracking code
+        type: Text
+        status: verified
+        pii: false
+        desc: Campaign/tracking code on the unsubscribe event.
+      unsubscribe_date:
+        api_name: UnsubscribeDate__c
+        label: Unsubscribe date/time
+        type: DateTime
+        status: verified
+        pii: false
+        desc: When the unsubscribe was recorded.
+      captured_source:
+        api_name: CapturedSource__c
+        label: Captured source
+        type: Text
+        status: verified
+        pii: false
+        desc: Source system that captured the unsubscribe.
+
+
+  LegalExclusion:
+    dmo: prd_LegalExclusion__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Legal exclusion
+    status: verified
+    desc: >-
+      Legal exclusion / do-not-contact flags for HCPs in production.
+      Prefer excluding these from marketable segments. Field vocabulary VERIFY.
+    primary_key: Id__c
+    fields:
+      id:
+        api_name: Id__c
+        label: Legal exclusion ID
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Row primary key.
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Likely links to Individual.Id__c — confirm before joining.
+      individual_id:
+        api_name: IndividualId__c
+        label: HCP ID (link)
+        type: Text
+        status: VERIFY
+        pii: false
+        desc: Alternate person-link field if present — confirm which key is populated.
+  # ---- Party identification (NPI / external IDs) -----------------------------
+  PartyIdentification:
+    dmo: prd_PartyIdentification__dlm
+    dataspace: PRD_US
+    dataspace_label: PRD-US
+    label: Party identification
+    status: verified
+    desc: >-
+      External identifiers attached to an HCP (NPI, MC Subscriber Key, etc.).
+      Join: Individual.Id__c = PartyIdentification.PartyId__c (confirmed
+      2026-08-07, join confirmed in Development; re-confirm in PRD_US). row counts differ from Development — re-profile in PRD_US — currently populated
+      only as Name__c = 'MC Subscriber Key' / Type = 'Person Identifier'.
+      NPI is expected here as IdentificationNumber__c when the NPI type is
+      present; filter on Name__c / PartyIdentificationTypeId__c to select it.
+    primary_key: Id__c
+    grain: one row per (party, identification type) identifier
+    fields:
+      id:
+        api_name: Id__c
+        label: Party identification ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Row primary key. Opaque system ID.
+      party_id:
+        api_name: PartyId__c
+        label: HCP ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: Links to Individual.Id__c (same party-linking pattern as contact points).
+      identification_name:
+        api_name: Name__c
+        label: Identification name
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Human-readable id kind. Observed at seed: 'MC Subscriber Key'.
+          NPI rows will use the NPI name literal once that type is loaded.
+        sampleValues: ["MC Subscriber Key"]
+        review: desc
+        review_reason: >-
+          Confirm the exact Name__c literal for NPI (e.g. 'NPI', 'National Provider
+          Identifier') so filters can isolate NPI from MC Subscriber Key.
+      identification_type:
+        api_name: PartyIdentificationTypeId__c
+        label: Identification type
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Identification type classifier. Observed at seed: 'Person Identifier'.
+          Prefer this and/or Name__c when selecting NPI vs other id kinds.
+        sampleValues: ["Person Identifier"]
+        review: desc
+        review_reason: Confirm PartyIdentificationTypeId__c value that means NPI.
+      identification_number:
+        api_name: IdentificationNumber__c
+        label: NPI / identification number
+        type: Text
+        status: verified
+        pii: true
+        desc: >-
+          The identifier value. When the row is an NPI type, this is the HCP's
+          National Provider Identifier — a direct personal/professional
+          identifier. Filter / join / COUNT(DISTINCT) only; never return the
+          number itself. Also holds MC Subscriber Keys today (not NPI-shaped;
+          mostly 32-char values at seed).
+        review: pii
+        review_reason: >-
+          Marked pii:true for NPI (and any other person-level id in this column).
+          Confirm org classification treats NPI as PII/PHI-adjacent for return
+          restrictions; COUNT(DISTINCT NPI) for benchmarks remains allowed.
+
+# -----------------------------------------------------------------------------
+# RELATIONSHIPS  (edges)  -- declared, directional, with cardinality
+# -----------------------------------------------------------------------------
+# Join keys + cardinality verified 2026-08-06 against PRD_US via MCP (DMO names remapped from Development)
+# (d360_dmo_get + join-count SQL). Note: Id__c may still pair with KQ_* key
+# qualifiers for segment SQL projection — see creating-segments.md.
+# -----------------------------------------------------------------------------
+relationships:
+
+  - name: unified_to_identitylink
+    status: verified
+    kind: identity_resolution
+    from: UnifiedIndividual
+    to: IdentityLink
+    from_key: Id__c
+    to_key: UnifiedRecordId__c
+    cardinality: one_to_many                # unified unified -> source links at seed
+
+  - name: identitylink_to_individual
+    status: verified
+    kind: identity_resolution
+    from: IdentityLink
+    to: Individual
+    from_key: SourceRecordId__c
+    to_key: Id__c
+    cardinality: one_to_one                 # each link row maps to one source individual
+
+  - name: individual_has_email
+    status: verified
+    kind: contact_point
+    from: Individual
+    to: ContactPointEmail
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many                # join confirmed 2026-08-06 (~1.4M matches)
+
+  - name: individual_has_address
+    status: verified
+    kind: contact_point
+    from: Individual
+    to: ContactPointAddress
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many                # keys confirmed; 0 address rows at seed
+
+  - name: individual_has_consent
+    status: verified
+    kind: consent
+    from: Individual
+    to: ContactPointConsent
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many                # keys confirmed; 0 consent rows at seed
+
+  - name: individual_has_party_identification
+    status: verified
+    kind: identifier
+    from: Individual
+    to: PartyIdentification
+    from_key: Id__c
+    to_key: PartyId__c
+    cardinality: one_to_many                # join confirmed 2026-08-07 (join confirmed in Development; re-confirm in PRD_US)
+
+  - name: consent_has_preference
+    status: verified
+    kind: consent
+    from: ContactPointConsent
+    to: ConsentPreference
+    from_key: Id__c
+    to_key: ContactPointConsentId__c
+    cardinality: one_to_many                # keys confirmed; 0 preference rows at seed
+
+  - name: individual_has_website_engagement
+    status: verified
+    kind: engagement_event
+    from: Individual
+    to: WebsiteEngagement
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many                # keys confirmed; 0 website rows at seed
+
+  - name: individual_has_email_engagement
+    status: verified
+    kind: engagement_event
+    from: Individual
+    to: EmailEngagement
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many                # join confirmed 2026-08-06 (~7.57M events)
+
+  - name: individual_has_nbrx
+    status: verified
+    kind: transactional_event
+    from: Individual
+    to: NBRxAggregated
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many                # keys confirmed; 0 NBRx rows at seed
+
+  - name: individual_has_hcp_segmentation
+    status: verified
+    kind: attribute
+    from: Individual
+    to: HcpSegmentation
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many                # keys confirmed; 0 rows at seed
+
+  - name: individual_has_header_unsubscribe
+    status: verified
+    kind: consent
+    from: Individual
+    to: HeaderUnsubscribeBrand
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many                # SFMC header-unsubscribe brand events
+
+# -----------------------------------------------------------------------------
+# PATHS  (named multi-hop traversals)  -- reusable join chains
+# -----------------------------------------------------------------------------
+paths:
+
+  unified_individual_to_source:
+    description: Resolve a unified profile down to its source individual record(s).
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_email:
+    description: From a resolved person to their email contact points.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_email
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_address:
+    description: From a resolved person to their address contact points (state/region).
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_address
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_consent:
+    description: From a resolved person to contact-point consent (opt-in / opt-out).
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_consent
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_npi:
+    description: >-
+      From a resolved person to their NPI (PartyIdentification.IdentificationNumber__c
+      filtered to the NPI type). Deduplicate on the number when counting DISTINCT NPI.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_party_identification
+    dedupe_on: PartyIdentification.IdentificationNumber__c
+    fan_out: true
+    filter_hint: >-
+      Restrict to NPI rows via Name__c / PartyIdentificationTypeId__c once those
+      literals are confirmed (seed currently only has MC Subscriber Key).
+
+  unified_individual_to_website_engagement:
+    description: From a resolved person to their website engagement events.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_website_engagement
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_email_engagement:
+    description: From a resolved person to their email engagement events (open/click/opt-out).
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_email_engagement
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_nbrx:
+    description: From a resolved HCP to aggregated NBRx by brand.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_nbrx
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_hcp_segmentation:
+    description: From a resolved HCP to brand/indication segmentation attributes.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_hcp_segmentation
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+  unified_individual_to_header_unsubscribe:
+    description: From a resolved HCP to SFMC header-unsubscribe brand events.
+    hops:
+      - unified_to_identitylink
+      - identitylink_to_individual
+      - individual_has_header_unsubscribe
+    dedupe_on: UnifiedIndividual.Id__c
+    fan_out: true
+
+# -----------------------------------------------------------------------------
+# JOURNEYS  (worked NL examples -> how the pieces assemble)
+# -----------------------------------------------------------------------------
+journeys:
+
+  brand_web_visitors_by_state:
+    intent: "How many opted-in <brand> HCPs in <state> visited the website in the last 60 days?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_website_engagement
+    also_join: unified_individual_to_address
+    # Also consider unified_individual_to_consent when ContactPointConsent is populated.
+    # Brand may come from WebsiteEngagement.indication/therapeutic_area or HcpSegmentation.
+    filters:
+      - "WebsiteEngagement.engagement_date >= CURRENT_DATE - INTERVAL '60 days'"
+      - "ContactPointAddress.state = 'NY'"            # spoken name -> code; state on address
+      # opt-in: ContactPointConsent.consent_status = '<OptIn literal>' when data lands
+      # interim opt-out signal via email eng: NOT EXISTS EngagementChannelActionId = 'Opt Out'
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    # Assembled SQL (identity-resolution path via the link DMO):
+    #
+    #   SELECT COUNT(DISTINCT ui."Id__c") AS person_count
+    #   FROM "prd_UnifiedIndividualPrd1__dlm" ui
+    #   JOIN "prd_UnifiedLinkIndividualPrd1__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."Id__c"
+    #   JOIN "prd_Individual__dlm" i
+    #     ON i."Id__c" = link."SourceRecordId__c"
+    #   JOIN "prd_ContactPointAddress__dlm" addr
+    #     ON addr."PartyId__c" = i."Id__c"
+    #   JOIN "prd_WebsiteEngagement__dlm" web
+    #     ON web."IndividualId__c" = i."Id__c"
+    #   WHERE addr."StateProvinceId__c" = 'NY'
+    #     AND web."EngagementDateTm__c" >= CURRENT_DATE - INTERVAL '60 days';
+    #
+    # NOTE (2026-08-06): Address + WebsiteEngagement have 0 rows in PRD_US —
+    # this journey will count 0 until those DMOs are populated.
+    caveats:
+      - "Address and WebsiteEngagement empty at seed — expect 0 until data lands."
+      - "Brand affiliation is not a field on Individual; use WebsiteEngagement or HcpSegmentation."
+
+  email_openers_last_90_days:
+    intent: "How many HCPs opened a customer email in the last 90 days?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_email_engagement
+    filters:
+      - "EmailEngagement.engagement_channel_action = 'Open'"
+      - "EmailEngagement.engagement_date >= CURRENT_DATE - INTERVAL '90 days'"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    #   SELECT COUNT(DISTINCT ui."Id__c") AS person_count
+    #   FROM "prd_UnifiedIndividualPrd1__dlm" ui
+    #   JOIN "prd_UnifiedLinkIndividualPrd1__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."Id__c"
+    #   JOIN "prd_Individual__dlm" i
+    #     ON i."Id__c" = link."SourceRecordId__c"
+    #   JOIN "prd_EmailEngagement__dlm" ee
+    #     ON ee."IndividualId__c" = i."Id__c"
+    #   WHERE ee."EngagementChannelActionId__c" = 'Open'
+    #     AND ee."EngagementDateTm__c" >= CURRENT_DATE - INTERVAL '90 days';
+
+  hcp_wrote_nbrx_by_brand:
+    intent: "How many HCPs have NBRx for <brand>?"
+    anchor: UnifiedIndividual
+    path: unified_individual_to_nbrx
+    also_join: unified_individual_to_address   # for optional state filter when address data lands
+    filters:
+      - "NBRxAggregated.brand = '<brand>'"
+      - "NBRxAggregated.nbrx_count > 0"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    #   SELECT COUNT(DISTINCT ui."Id__c") AS hcp_count
+    #   FROM "prd_UnifiedIndividualPrd1__dlm" ui
+    #   JOIN "prd_UnifiedLinkIndividualPrd1__dlm" link
+    #     ON link."UnifiedRecordId__c" = ui."Id__c"
+    #   JOIN "prd_Individual__dlm" i
+    #     ON i."Id__c" = link."SourceRecordId__c"
+    #   JOIN "prd_NBRxAggregated__dlm" rx
+    #     ON rx."IndividualId__c" = i."Id__c"
+    #   WHERE rx."Brand__c" = '<brand>'
+    #     AND rx."NBRxCount__c" > 0;
+    #
+    # NOTE (2026-08-06): NBRxAggregated has 0 rows in PRD_US.
+    caveats:
+      - "NBRxAggregated empty at seed — expect 0 until data lands."
+
+# -----------------------------------------------------------------------------
+# REFERENCE SEGMENTS
+# -----------------------------------------------------------------------------
+# Development CIA segment recipes live in dataModel-dev.yaml. Rebuild equivalents
+# here only with governance sign-off; do not invent PRD_* names from DEV copies.
+# SegmentOn for this space: prd_UnifiedIndividualPrd1__dlm
+# -----------------------------------------------------------------------------
+reference_segments: {}

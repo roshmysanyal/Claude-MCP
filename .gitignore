@@ -1,0 +1,7 @@
+
+# Local secrets — never commit
+.env
+*.env
+
+# Local editor / agent state (machine-specific)
+.claude/

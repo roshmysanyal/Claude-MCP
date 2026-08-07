@@ -1,0 +1,55 @@
+# =============================================================================
+# Data 360 Data Model — LAB
+# =============================================================================
+# ROUTING
+#   Audience: HCP lab / sandbox. Explicit LAB only.
+#
+# ORG SEED (MCP, 2026-08-07)
+#   Dataspace: LAB (prefix `LAB_`)
+#   Segmentable profile: LAB_Individual__dlm only (no Identity Resolution /
+#   UnifiedIndividual in this space).
+#   Also has activation-audience DMOs for LAB HCP US Vaccine.
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql
+  dataspace: LAB
+  dataspace_label: LAB
+  audience: HCP
+  anchor: Individual
+  note: >-
+    No IR / unified profile. Counts and segments anchor directly on
+    LAB_Individual__dlm (project Id__c + KQ_Id__c for segment SQL).
+
+entities:
+
+  Individual:
+    dmo: LAB_Individual__dlm
+    dataspace: LAB
+    dataspace_label: LAB
+    label: HCP
+    status: verified
+    desc: Sole segmentable person DMO in LAB. No unified layer.
+    grain: one row per HCP
+    count_key: Id__c
+    primary_key: Id__c
+    fields:
+      id: { api_name: Id__c, label: HCP ID, type: Text, status: verified, pii: false }
+      kq_id: { api_name: KQ_Id__c, label: Key qualifier, type: Text, status: verified, pii: false }
+      first_name: { api_name: FirstName__c, label: First name, type: Text, status: verified, pii: true }
+      last_name: { api_name: LastName__c, label: Last name, type: Text, status: verified, pii: true }
+      salutation: { api_name: Salutation__c, label: Salutation, type: Text, status: verified, pii: false }
+      gender: { api_name: GenderId__c, label: Gender, type: Text, status: verified, pii: true }
+      occupation: { api_name: Occupation__c, label: Occupation, type: Text, status: verified, pii: false }
+      primary_specialty: { api_name: Primary_Specialty__c, label: Primary specialty, type: Text, status: verified, pii: false, note: "underscore in API name — not PrimarySpecialty__c" }
+      profession: { api_name: Profession__c, label: Profession, type: Text, status: verified, pii: false }
+      city: { api_name: City__c, label: City, type: Text, status: verified, pii: false }
+      state: { api_name: State__c, label: State, type: Text, status: verified, pii: false }
+      workplace: { api_name: Workplace__c, label: Workplace, type: Text, status: verified, pii: false }
+      private_practice: { api_name: Private_Practice__c, label: Private practice, type: Boolean, status: verified, pii: false }
+      practice: { api_name: Practice__c, label: Practice, type: Text, status: verified, pii: false }
+
+relationships: []
+paths: {}

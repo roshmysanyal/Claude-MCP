@@ -1,0 +1,40 @@
+# =============================================================================
+# Data 360 Data Model — PRD_PAT (Patient production / PRD-PAT)
+# =============================================================================
+# ROUTING
+#   Audience: PATIENT (production). Explicit PRD_PAT / PRD-PAT only.
+#
+# ORG SEED (MCP, 2026-08-07)
+#   Dataspace: PRD_PAT (label PRD-PAT, prefix `ppt_`)
+#   DATA MODEL IS EMPTY of segmentable profiles — only Static Currency Rates
+#   DMOs were returned by d360_dmo_list. No Individual / UnifiedIndividual /
+#   ContactPoint / Consent objects exist in this space yet.
+#
+#   Do NOT attempt patient counts or segments here until DMOs are published.
+#   Prefer DTC (or DEV_PAT for patient-dev) instead.
+# =============================================================================
+
+version: 1
+
+defaults:
+  dialect: postgresql
+  dataspace: PRD_PAT
+  dataspace_label: PRD-PAT
+  audience: PATIENT
+  anchor: null
+  status: EMPTY
+  note: >-
+    No profile/engagement DMOs present at seed (2026-08-07). Currency-rate utility
+    objects only. Stop and tell the user this space is not ready for
+    segments/counts.
+
+entities: {}
+
+inventory_only:
+  - { dmo: ppt_StaticCurrencyRates_Home__dlm, label: Static Currency Rates Home, status: verified }
+  - { dmo: ppt_StaticCurrencyRates_PatientLSCProd__dlm, label: Static Currency Rates PatientLSCProd, status: verified }
+  - { dmo: ppt_StaticCurrencyRates_USSFA__dlm, label: Static Currency Rates USSFA, status: verified }
+  - { dmo: ppt_StaticCurrencyRates_USVeevaDataC__dlm, label: Static Currency Rates USVeevaDataC, status: verified }
+
+relationships: []
+paths: {}
