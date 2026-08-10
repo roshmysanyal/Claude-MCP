@@ -1237,11 +1237,13 @@ journeys:
 # own STG_* segments — harvest via Segment APIs when needed.
 # SegmentOn for this space: stg_UnifiedIndividual__dlm
 #
-# STG availability (2026-08-07):
+#   STG availability (2026-08-07):
 #   Present: profile, contact points, consent, HcpSegmentation, PartyIdentification,
 #            LegalExclusion, HeadquarterEmailEngagement, IQVIACompetitorSalesFact
 #   Absent as DMOs: EmailEngagement, WebsiteEngagement, NBRxAggregated,
 #                   HeaderUnsubscribeBrand
+#   DATA NOTE: profile/contact/consent DMOs are schema-mapped but 0 rows; live counts
+#   work from HeadquarterEmailEngagement + IQVIACompetitorSalesFact.
 # -----------------------------------------------------------------------------
 reference_segments: {}
 

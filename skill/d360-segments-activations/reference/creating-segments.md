@@ -137,3 +137,18 @@ contained). Build each to its own rules; don't reuse one for the other.
 - [ ] Filters translated **from the plain-English description** (Recipe B), not copied from the
       reference segment's raw JSON.
 - [ ] Membership sanity-checked against the **count** for the same criteria (Recipe A) before publish.
+
+---
+
+## Read segment count and lifecycle status
+
+1. `d360_segment_list` in the routed dataspace to resolve API name when needed.
+2. `d360_segment_get` for definition, SegmentOn, ID, publication state, and schedule.
+3. `d360_segment_count` with `preferApproxCount: false`; follow its async job/status and report
+   **PENDING** until complete.
+4. `d360_activation_list`, matched by exact segment/market-segment ID, then
+   `d360_activation_get` for each match.
+
+Report **created/draft**, **published**, and **activated** separately. An ACTIVE activation target
+does not mean that the segment is activated. Never call `d360_segment_member_list` merely to prove
+the count; return count and aggregate lifecycle metadata only.

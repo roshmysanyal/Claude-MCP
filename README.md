@@ -133,11 +133,16 @@ customer-d360-poc/
 ├── setup/                       ← 00 provision Salesforce · 01 install · 02 auth · 03 connect Claude
 ├── skill/d360-segments-activations/  ← the governed Claude Skill (SKILL.md)
 ├── reference/                   ← semantic layer: DMO/field/join model (dataModel-dev.yaml) + how-to-use / verify docs
-├── prompts/                     ← example marketer prompts
-├── validation/                  ← OCL/Snowflake benchmark + compare procedure
+├── prompts/                     ← example marketer prompts (POC Phase 1/2)
+├── usecase-prompts/             ← dataspace-validated natural-language count use cases
+│                                  (+ demo-segments-d360-snowflake.md for dual-validation demos)
+├── demo-ui/                     ← browser demo: use case → dual-report count outcome
+├── validation/                  ← OCL/Snowflake benchmark + compare procedure (+ stream-source dual report)
 ├── feedback/                    ← self-improvement: session friction log → owner-reviewed skill changes (no per-machine forks)
 └── readout/                     ← Phase 3 one-pager template
 ```
+
+**Demo UI:** open [demo-ui/index.html](demo-ui/index.html) (or `npx serve demo-ui`) — Stage presets show Data 360 ballpark + Snowflake source mapping. Live MCP counts still run via the Skill in Cursor.
 
 ### Open items to fill before running against production
 - Exact OCL/Snowflake view / Snowflake query name → **Salesforce Data Cloud Architect**

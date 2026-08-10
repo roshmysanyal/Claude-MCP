@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data 360 Segment Count — Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <p class="brand">Data 360 · Segments &amp; Activations</p>
+        <h1>Use case → count outcome</h1>
+        <p class="lede">
+          Pick a demo prompt or type your own. Outcomes show the required dual
+          report: Data 360 count and Snowflake stream-source count.
+        </p>
+        <p class="stamp" id="refreshed"></p>
+      </header>
+
+      <main class="layout">
+        <section class="panel input-panel" aria-labelledby="input-heading">
+          <h2 id="input-heading">Use case</h2>
+
+          <fieldset class="dataspace">
+            <legend>Dataspace</legend>
+            <label>
+              <input type="radio" name="dataspace" value="Development" />
+              Dev
+            </label>
+            <label>
+              <input type="radio" name="dataspace" value="STG_US" checked />
+              Stage
+            </label>
+            <label>
+              <input type="radio" name="dataspace" value="PRD_US" />
+              Prod
+            </label>
+            <label>
+              <input type="radio" name="dataspace" value="DTC" />
+              DTC (D2C)
+            </label>
+          </fieldset>
+
+          <div class="presets" id="presets" role="listbox" aria-label="Demo prompts"></div>
+
+          <label class="field-label" for="usecase">Prompt</label>
+          <textarea
+            id="usecase"
+            rows="4"
+            placeholder="In Stage, how many HCPs opened a headquarter email in the last 90 days?"
+          ></textarea>
+
+          <div class="actions">
+            <button type="button" class="btn primary" id="runBtn">Show outcome</button>
+            <button type="button" class="btn primary" id="createSegBtn">Create segment</button>
+            <button type="button" class="btn ghost" id="copyBtn">Copy prompt</button>
+            <button type="button" class="btn ghost" id="clearBtn">Clear</button>
+          </div>
+          <p class="hint" id="status"></p>
+        </section>
+
+        <section class="panel outcome-panel" aria-labelledby="outcome-heading">
+          <h2 id="outcome-heading">Outcome</h2>
+          <div id="outcome" class="outcome empty">
+            <p class="muted">Select a preset or enter a use case, then show outcome.</p>
+          </div>
+        </section>
+      </main>
+
+      <section class="panel lifecycle-panel" aria-labelledby="lifecycle-heading">
+        <h2 id="lifecycle-heading">Existing segment — count &amp; activation status</h2>
+        <p class="faq-intro">
+          Enter the segment API/developer name. The generated agent prompt reads the definition,
+          evaluated member count, publication status, and matching activation bindings — no member
+          IDs or PII.
+        </p>
+        <div class="lifecycle-form">
+          <label>
+            <span class="field-label">Dataspace</span>
+            <select id="segmentStatusDataspace">
+              <option value="Development">Dev</option>
+              <option value="STG_US">Stage</option>
+              <option value="PRD_US">Prod</option>
+              <option value="DTC">DTC</option>
+            </select>
+          </label>
+          <label class="lifecycle-name">
+            <span class="field-label">Segment API name</span>
+            <input id="segmentApiName" type="text" placeholder="DEMO_Dev_Email_Openers_90d" />
+          </label>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="copyStatusPromptBtn">
+            Copy agent status prompt
+          </button>
+          <button type="button" class="btn ghost" id="copyListPromptBtn">
+            Copy list-segments prompt
+          </button>
+        </div>
+        <p class="hint" id="lifecycleStatus"></p>
+      </section>
+
+      <section class="panel faq-panel" aria-labelledby="demo-seg-heading">
+        <h2 id="demo-seg-heading">Demo segments — D360 + Snowflake validation</h2>
+        <p class="faq-intro">
+          Stage-only segments tagged
+          <span class="faq-cat tag-dual">D360 and Snowflake count</span>
+          — DMOs with populated Data 360 data <strong>and</strong> ACTIVE Snowflake
+          streams. Recommended path: <strong>A → C → G</strong>.
+          Copy Snowflake SQL and run it in the warehouse to complete dual report.
+          Full write-up:
+          <a href="../usecase-prompts/demo-segments-d360-snowflake.md">demo-segments-d360-snowflake.md</a>.
+        </p>
+        <div id="demo-segments" class="faqs"></div>
+      </section>
+
+      <section class="panel faq-panel" aria-labelledby="faq-heading">
+        <h2 id="faq-heading">FAQs — Sample use cases by dataspace</h2>
+        <p class="faq-intro">
+          Live sample use cases from populated DMOs, grouped by dataspace.
+          <span class="faq-cat tag-dev">Dev</span> /
+          <span class="faq-cat tag-prod">Prod</span> =
+          HCP identity &amp; CRM email (Snowflake N/A for CRM).
+          <span class="faq-cat tag-dual">Stage</span> =
+          HCP HQ email / IQVIA with ACTIVE Snowflake streams (dual report).
+          <span class="faq-cat tag-dtc">DTC (D2C)</span> =
+          patient brand, consent &amp; identity.
+          Badges: <span class="badge badge-live">live</span>,
+          <span class="badge badge-empty">data not loaded</span>,
+          <span class="badge badge-unsupported">not supported</span>.
+        </p>
+        <div id="faqs" class="faqs"></div>
+      </section>
+
+      <footer class="foot">
+        <p>
+          Counts are a live Data 360 snapshot in <code>counts.json</code>, refreshed
+          by the agent via the data360 MCP. Snowflake source counts still run
+          separately.
+          <a href="../validation/d360-vs-snowflake-stream.md">Dual-report steps</a>
+          ·
+          <a href="../usecase-prompts/demo-segments-d360-snowflake.md">Demo segments</a>
+          ·
+          <a href="../usecase-prompts/create-segment-from-count.md">Create segment</a>
+          ·
+          <a href="../usecase-prompts/stg-us-hcp-counts.md">Stage prompts</a>
+          ·
+          <a href="../prompts/example-prompts.md">Example prompts</a>
+        </p>
+      </footer>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

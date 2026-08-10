@@ -166,3 +166,36 @@ contained). Build each to its own rules; don't reuse one for the other.
 - [ ] Filters translated **from the plain-English description** (Recipe B), not copied from the
       reference segment's raw JSON.
 - [ ] Membership sanity-checked against the **count** for the same criteria (Recipe A) before publish.
+
+---
+
+## Read segment count and lifecycle status
+
+After create — and whenever the user asks about an existing segment — use the governed read flow:
+
+1. `d360_segment_list` (with the correct `dataspace`) to resolve API name when needed.
+2. `d360_segment_get` by `segmentApiName` for definition, SegmentOn, ID, schedule, and
+   publication/lifecycle state.
+3. `d360_segment_count` with `preferApproxCount: false` for the evaluated member count. It can be
+   asynchronous; follow the returned job/status mechanism and report **PENDING** until complete.
+4. `d360_activation_list`, matched by market-segment/segment ID, then `d360_activation_get` for each
+   match to determine whether the segment is actually activated.
+
+Do not confuse these states:
+
+- **Created / draft:** definition exists.
+- **Published / active segment:** definition has been evaluated.
+- **Activated:** an activation binding exists for the segment and its returned activation status is
+  active/successful.
+
+An ACTIVE activation **target** alone does not mean a segment is activated. Never call
+`d360_segment_member_list` merely to prove the count; report counts and lifecycle metadata only.
+
+Required output:
+
+```text
+Segment: <display name> (<API name>)
+Segment member count: <N | PENDING>
+Publication status: <returned status>
+Activation status: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
+```

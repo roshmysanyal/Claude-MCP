@@ -3,13 +3,19 @@ name: d360-segments-activations
 description: >-
   Query and build Salesforce Data 360 (Data Cloud) HCP and patient segments from
   plain English for the customer POC, via the data360 MCP server. Use when the
-  user asks to count, build a segment from a count, describe, rebuild, or
-  activate a segment for any brand. Routes by audience: HCP asks use
-  reference/dataModel-dev.yaml in dataspace Development (DEV-US); patient/consumer
-  (DTC) asks use reference/dataModel-dtc.yaml in dataspace DTC. Enforces
-  OCL/Snowflake count validation (never Einstein). Always ask which dataspace
-  (Dev / Stage / Prod) before any HCP or patient count unless the user already
-  named one. Count responses never include PII. For "within N miles of
+  user asks to count, list/read a segment, read its member count, determine
+  whether it is published or activated, build a segment from a use case/count,
+  describe, rebuild, update, publish, or activate a segment for any brand. Routes
+  by audience: a doctor/HCP use case uses the HCP model (reference/dataModel-dev.yaml
+  in Development, dataModel-stg-us.yaml in STG_US, dataModel-prd-us.yaml in PRD_US);
+  a patient/consumer/D2C use case uses reference/dataModel-dtc.yaml in dataspace DTC.
+  Enforces OCL/Snowflake count validation (never Einstein). Always ask which dataspace
+  (Dev / Stage / Prod) before any count, create, update, or status check unless the
+  user already named one. Every count — including the count behind a create/update
+  and any status check — dual-reports Data 360 vs the Snowflake data-stream source
+  table; if Snowflake is not connected or the stream is not ACTIVE, it still provides
+  the validation SQL and marks the Snowflake side PENDING/N/A. Count responses never
+  include PII. For "within N miles of
   ZIP/landmark" asks, precompute ZIP centroids into an IN list (see ZIP-radius
   section) — do not invent in-SQL Haversine.
 ---
@@ -17,9 +23,11 @@ description: >-
 # Data 360 Segment POC (Governed Skill)
 
 You interface with Salesforce **Data 360** through the **`data360` MCP server** to (1) return
-verified HCP segment counts from plain English and (2) turn a counted population into a segment —
-typically the segment you just counted, or a rebuilt reference segment — and activate it. This Skill
-is the **version-controlled data-access contract** for the customer POC. Follow it exactly.
+verified HCP segment counts from plain English, (2) list/read existing segments, their member
+counts, publication state, and activation state, and (3) turn a use case or counted population
+into a segment — typically the segment you just counted, or a rebuilt reference segment — publish
+it and, only when approved, activate it. This Skill is the **version-controlled data-access
+contract** for the customer POC. Follow it exactly.
 
 > **This file is a governance artifact.** It is reviewed and approved by the named governance owner
 > before deployment. Any change to the validation contract or tool scope requires re-review.
@@ -31,9 +39,10 @@ is the **version-controlled data-access contract** for the customer POC. Follow 
 The user may ask about **any brand**. When a request names a brand (or none), work within the same
 entity model and operations below — no brand allowlist.
 
-- **Dataspace (required — ask before counting):** For every **HCP or patient count**, if the user
-  has not already named a dataspace, **ask whether to pull from Dev, Stage, or Prod** before
-  querying. Do **not** silently default. Map the answer and load that YAML:
+- **Dataspace (required — ask first, every time):** For every **use case** — whether the user asks
+  to **count**, **create a segment**, **update a segment**, or **check a segment's count/status** —
+  if the user has not already named a dataspace, **ask whether to run against Dev, Stage, or Prod**
+  before doing anything else. Do **not** silently default. Map the answer and load that YAML:
 
   | User says | HCP dataspace / model | Patient dataspace / model |
   | --- | --- | --- |
@@ -44,6 +53,21 @@ entity model and operations below — no brand allowlist.
   Every dataspace has a YAML in [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml).
   Pass the chosen dataspace on every Query SQL and Segment op. **Do not** silently fall back to
   `default`.
+- **Audience routing (required — decide before mapping):** A **doctor / HCP** use case routes to the
+  **HCP** model in the chosen dataspace (`Development` / `STG_US` / `PRD_US`). A **patient /
+  consumer / DTC / D2C** use case routes to the **patient** model — default **`DTC`**
+  ([dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml)). If audience is ambiguous, ask
+  "**HCP (doctor) or patient (DTC)?**" together with the Dev/Stage/Prod question, then load the
+  matching YAML. Never build one request across both audiences.
+- **Always dual-validate against Snowflake (count / create / update / status):** Any operation that
+  produces a member count — a Recipe A count, the count behind a **create** or **update**, or a
+  **segment status** read — must be validated against the **Snowflake data-stream source table**
+  for that DMO (see [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md)).
+  Report **Data 360 count** and **Snowflake source count** together. **If Snowflake is not
+  connected, or the DMO's data stream is not ACTIVE / not Snowflake-fed, you must still provide the
+  exact Snowflake validation SQL** and mark **Snowflake source count: PENDING** (or **N/A —
+  connector not Snowflake**), naming `DATABASE.SCHEMA.TABLE`. Never skip the Snowflake side
+  silently.
 - **Entity:** Health Care Professional (HCP) profiles, or DTC patient/consumer profiles, plus their
   related engagement/consent objects in Data 360.
 - **Fields (illustrative — confirm exact API names with the Data Cloud Architect):**
@@ -81,8 +105,27 @@ must remain `COUNT(DISTINCT …)` only — never add PII columns.
 
 ### What you may return for a count
 
-- The **integer count** (and plain-English restatement: e.g. "**12,431 HCPs** match").
-- Dataspace name (`STG_US` / `PRD_US` / …), refresh timestamps, and OCL/Snowflake validation deltas.
+- The **integer Data 360 count** (and plain-English restatement).
+- The **integer Snowflake source-table count** for the stream that feeds the DMO (see
+  [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md)) —
+  always pair them:
+
+  ```text
+  **Data 360 count:** <N>
+  **Snowflake source count:** <M> (Source: DATABASE.SCHEMA.TABLE)
+  ```
+
+  If Snowflake is **not connected**, or the DMO's data stream is **not ACTIVE / not Snowflake-fed**,
+  do not drop the Snowflake line — return the validation SQL and mark it PENDING/N/A:
+
+  ```text
+  **Data 360 count:** <N>
+  **Snowflake source count:** PENDING (stream not ACTIVE) — or — N/A (connector not Snowflake)
+  **Snowflake validation SQL:**
+    SELECT COUNT(DISTINCT <ID>) FROM DATABASE.SCHEMA.TABLE WHERE <same filters>;
+  ```
+
+- Dataspace name (`STG_US` / `PRD_US` / …), refresh timestamps, and validation deltas.
 - Non-PII **aggregate** diagnostics only when needed (fill-rates; `GROUP BY` on `pii:false`
   categorical fields). For empty POC Staging/Development results, the **literal count SQL** under
   **SQL (for validation)** — that SQL must itself be count-only (see below).
@@ -244,8 +287,15 @@ skill owner's git loop.
 - **Dataspace follows the user's choice.** For HCP or patient **counts**, ask **Dev / Stage / Prod**
   unless already named; then use that model's `defaults.dataspace` on every op. Restate the choice
   before running. Do not silently query Development or DTC.
-- **Count source of truth = OCL/Snowflake.** Einstein Segment Creation is explicitly ruled out — its counts do not match OCL/Snowflake. Never present an Einstein-derived count as validated.
-- **A Data 360 count is not "validated" until compared to the OCL/Snowflake benchmark** within the agreed 2–5% threshold **and** in the same refresh window. See the validation harness.
+- **Count source of truth = OCL/Snowflake (+ stream-source parity).** Einstein Segment Creation is
+  explicitly ruled out. After every D360 count, also report the count from the **Snowflake
+  data-stream source table** mapped in
+  [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md) —
+  format per [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md).
+  A count is not **"validated"** until the formal OCL benchmark also clears
+  [../../validation/compare-counts.md](../../validation/compare-counts.md).
+- **Dual-report every count.** Never answer with D360 alone when a Snowflake stream source exists.
+  Always: **Data 360 count:** N · **Snowflake source count:** M (Source: DB.SCHEMA.TABLE).
 - **Governance gate:** do not create/publish/activate against production data unless the governance owner has signed off (the human running you confirms this).
 - **Semantic layer = how you know the schema.** DMOs, fields (with types + PII flags), join keys, cardinality, and reusable join paths live in the routed model — [../../reference/dataModel-dev.yaml](../../reference/dataModel-dev.yaml) (HCP) or [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) (patient/DTC). Each is verified against the org before Phase 1 and re-verified on data-model changes ([../../reference/before-using-and-on-data-model-changes.md](../../reference/before-using-and-on-data-model-changes.md)). Trust its `verified` elements; for `VERIFY` elements, still answer but note the mapping is unverified.
 
@@ -279,9 +329,26 @@ user if ambiguous.
 2. **Map the request through the routed semantic layer** ([../../reference/dataModel-dev.yaml](../../reference/dataModel-dev.yaml) or [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml)): pick the anchor, map each concept to its real DMO/field (and that entity's `dataspace`), choose the connecting `path` (routing unified↔source through the identity-link DMO), and note the `count_key`. Do not invent DMOs, fields, or join keys. If a concept isn't in the model, behavior depends on the **Discovery mode** toggle above: in `propose` mode, **discover-and-propose, don't guess-and-proceed** — run a read-only metadata op to find the real DMO/field, add it to `dataModel-dev.yaml` as a `VERIFY` entry (a proposal for the architect to verify); in `strict` mode, **do not look it up live — stop and ask a human to add it** to the locked model. If any mapped element is still `VERIFY`, **still answer** — just attach a one-line note that the schema mapping is unverified pending architect confirmation. See [../../reference/before-using-and-on-data-model-changes.md](../../reference/before-using-and-on-data-model-changes.md) for the verification + sharing loop.
    - **ZIP-radius / "within N miles" asks:** do **not** invent Haversine SQL or assume a ZIP-centroid DMO. Follow *ZIP-radius geographic filters* below — precompute the ZIP5 list externally and filter with `SUBSTRING(PostalCodeId__c FROM 1 FOR 5) IN (...)`.
 3. `search` the **Query** family for a SQL/QueryV2 count operation.
-4. Build a `COUNT(DISTINCT <anchor count_key>)` query using the mapped joins and confirmed filters (DISTINCT on the anchor so 1:N fan-out never inflates the number). **SELECT only that count** — never project `pii:true` columns (or patient health attributes) into the result set. Return **the count only** to the user — no sample rows, no name/email/NPI/address dumps. Same rule for HCP and patient/DTC.
-5. `execute` with the **user-chosen dataspace** and capture: **the count** and the **Data 360 data-stream last-refresh timestamp** (query it if not returned).
-6. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty / unknown values**:
+4. Build a `COUNT(DISTINCT <anchor count_key>)` query using the mapped joins and confirmed filters (DISTINCT on the anchor so 1:N fan-out never inflates the number). **SELECT only that count** — never project `pii:true` columns (or patient health attributes) into the result set. Same rule for HCP and patient/DTC.
+5. `execute` with the **user-chosen dataspace** and capture: **the D360 count** and the **Data 360 data-stream last-refresh timestamp** (query it if not returned).
+6. **Validate against the Snowflake data-stream source table** (required dual report). Follow
+   [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md):
+   1. Map the primary DMO in the count to its Snowflake `database.schema.table` via
+      [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md).
+   2. Build an equivalent `COUNT(DISTINCT …)` on that source table with the **same filters**.
+   3. Run it if Snowflake access is available; otherwise provide the SQL and mark the Snowflake
+      count **PENDING**.
+   4. **Always present both numbers** in this shape (marketer-facing):
+
+      ```text
+      **Data 360 count:** <N> (dataspace <name>, DMO <api_name>)
+      **Snowflake source count:** <M>
+        Source: <DATABASE>.<SCHEMA>.<TABLE>
+        Stream: <stream_name>
+      ```
+
+      If the stream is not Snowflake-fed, say **Snowflake source count: N/A** and name the connector.
+7. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty / unknown values**:
    - **If the count comes back 0 / empty**, don't stop at "0". **Profile the DMO** that filtered it out. The GA facade has **no dedicated data-profiler** — `d360_profile_query`/`d360_profile_metadata` are the *Profile query API* (they query/describe the unified profile DMOs), not a column-statistics tool. So profiling means **writing aggregation SQL through the Query SQL op** (`d360_query_sql`): per-column populated count + percent (the fill-rate expression below), cardinality (`COUNT(DISTINCT …)`), and — for non-PII, low-cardinality categorical fields — the value breakdown (`GROUP BY`). **You enforce PII-safety** — for `pii:true` fields query **fill-rate only, never the literals**. Use the result to tell the user *what values ARE present* and to distinguish "zero matches" from "the field isn't populated at all."
    - **When the user asks about a specific value, or you are unsure what values a field holds**, run a value-distribution query **before** (or instead of) guessing literals. Canonical shape (non-PII fields only):
 
@@ -309,12 +376,83 @@ user if ambiguous.
    - **POC Staging empty-result rule:** when the routed dataspace is **`STG_US`** (Staging) **or** **`Development`** (DEV-US — the POC primary), and the count is **0 / empty** (including "DMO has 0 rows"), **always return the literal SQL you executed** in the user-facing answer — copy-pasteable, as run — so the team can validate the query in lieu of a result. Lead with the plain-English empty finding, then the SQL under a **SQL (for validation)** heading. This overrides the default "hide SQL" presentation rule for empty POC Staging / Development counts only.
    - Append what you learned to the observed-values notebook: non-PII categorical values (with counts, `org` + date), PII fields as **fill-rate only**, and any empty asks under *Asked but unavailable*. It's a hint cache, not the governed schema.
    - Fill-rate SQL (null-and-empty-safe — in Data Cloud unpopulated text is often `''`, not NULL, so `IS NOT NULL` alone over-reports): `SUM(CASE WHEN "fld" IS NOT NULL AND CAST("fld" AS VARCHAR) <> '' THEN 1 ELSE 0 END)`. Still never surface PII values.
-7. **Do not call the number "validated" yet.** Instruct the user (or perform, if you have access) to run the OCL/Snowflake benchmark: [../../validation/run-benchmark.md](../../validation/run-benchmark.md).
-8. Compare per [../../validation/compare-counts.md](../../validation/compare-counts.md). Report:
-   - D360 count + refresh timestamp
-   - OCL/Snowflake count + snapshot timestamp
-   - delta % and whether it is within threshold and same refresh window
-9. If the delta exceeds threshold or windows don't match: **say the count is not yet validated**, and recommend investigating or waiting for the next refresh. Never present a mismatched count as a result.
+8. **Formal OCL/Snowflake benchmark (Phase 1 validated label).** In addition to stream-source dual
+   reporting, run (or instruct) the OCL benchmark per
+   [../../validation/run-benchmark.md](../../validation/run-benchmark.md) and compare per
+   [../../validation/compare-counts.md](../../validation/compare-counts.md). Report delta % and
+   refresh-window alignment. Do **not** call the number **"validated"** until that gate passes.
+9. If the stream-source delta or OCL delta exceeds threshold, or windows don't match: say the count
+   is **not yet validated**, and recommend investigating or waiting for the next refresh. Still
+   show both D360 and Snowflake source numbers — never hide a mismatch.
+
+## Recipe S — Read segment count, publication state, and activation state
+
+**Trigger:** the user asks to list segments, inspect a segment, read its count, or determine
+whether it is activated. This is read-only; do not publish, activate, update, or delete anything.
+
+### Identify the segment
+
+1. If the user supplied a segment API name, use it. Otherwise ask for the dataspace when not
+   already named, then `search` / `execute` **`d360_segment_list`** with that `dataspace`.
+2. Match by API/developer name first. A display-name match is not enough when multiple segments
+   match — present the non-PII names and ask which one.
+3. `execute` **`d360_segment_get`** with `segmentApiName`. Capture:
+   - display name and API/developer name
+   - segment / market-segment ID
+   - dataspace and SegmentOn DMO
+   - segment definition / criteria
+   - lifecycle/publication status and publish schedule
+   - last published / evaluated timestamp when returned
+
+### Read the member count
+
+4. `execute` **`d360_segment_count`** with:
+
+   ```json
+   {
+     "segmentApiName": "<api name>",
+     "input": { "preferApproxCount": false }
+   }
+   ```
+
+   This operation may be asynchronous. Follow the returned job handle/status mechanism exactly;
+   do not invent a polling operation. If the facade provides no completed result yet, report
+   **Segment member count: PENDING** and the returned job/status — never substitute the original
+   Recipe A query count as if it were the evaluated segment count.
+5. If a published segment response already contains a current member-count field and evaluation
+   timestamp, report it, but label whether it is exact or approximate from the response.
+6. Never call `d360_segment_member_list` just to prove the count: that can expose membership.
+   Counts and aggregate metadata only — no member IDs or PII.
+
+### Determine whether it is activated
+
+7. **Published/ACTIVE is not the same as activated.**
+   - *Published* means the segment definition has been evaluated.
+   - *Activated* means at least one Activation binding exists for that segment and its activation
+     status is active/successful (not merely that a target exists).
+8. `search` / `execute` **`d360_activation_list`**. Match activations by the segment's
+   `marketSegmentId` / segment ID (or the exact segment reference returned by the API). If the list
+   response is insufficient, `execute` **`d360_activation_get`** for each matching activation ID.
+9. For every match capture: activation ID/name, target name, activation status, refresh type,
+   last run / last successful run, and error message when returned. Do **not** infer activation
+   from segment status or from an ACTIVE activation target.
+10. Report one of:
+    - **Activation status: ACTIVATED** — one or more matching activations are active/successful.
+    - **Activation status: CONFIGURED, NOT ACTIVE** — binding exists but is draft/inactive/failed;
+      include its returned status.
+    - **Activation status: NOT ACTIVATED** — no activation binding references the segment.
+    - **Activation status: UNKNOWN** — API/access did not return enough evidence; state why.
+
+### Required status output
+
+```text
+Segment: <display name> (<segmentApiName>)
+Dataspace / SegmentOn: <dataspace> / <DMO>
+Segment member count: <N | PENDING> (<exact|approx>, evaluated <timestamp>)
+Publication status: <DRAFT|PUBLISHED|ACTIVE|…> (last published <timestamp>)
+Activation status: <ACTIVATED|CONFIGURED, NOT ACTIVE|NOT ACTIVATED|UNKNOWN>
+  Activation: <name/id/status> → Target: <target name>   # one line per binding
+```
 
 ## Recipe B — Push (build a segment → activate)
 
@@ -327,7 +465,19 @@ of SegmentOn primary keys) instead of a number. The criteria you mapped for the 
 criteria for the segment — you're changing the **shape of the SQL**, not re-deriving the population.
 So don't re-interpret the request; reuse the mapping you already have.
 
-There are two entry points; they converge on the same build-and-activate core.
+There are three entry points; they converge on the same build-and-status core.
+
+### Entry point 0 — build directly from a use case
+
+1. When the user provides a plain-English use case and asks to create a segment, first apply
+   Recipe A steps 0–6: confirm audience + dataspace, map the semantic layer, run the count-only
+   query, and (when Snowflake-fed) prepare the dual report. This establishes the expected
+   population before any write.
+2. Confirm the interpreted filters and the Data 360 count with the user. If the count is 0 because
+   a backing DMO is empty, show the SQL and offer a **draft definition**, but do not imply that the
+   segment will have members.
+3. Translate the exact confirmed mapping into membership SQL. Never reinterpret or broaden the
+   use case between count and create.
 
 ### Entry point 1 — build from the count you just ran (primary)
 
@@ -343,7 +493,7 @@ There are two entry points; they converge on the same build-and-activate core.
    **only** input allowed into the rebuild; do **not** copy the original raw filter JSON forward.
    Then map that description through the semantic layer exactly as in entry point 1.
 
-### Then — for either entry point (build → publish → validate → activate)
+### Then — for any entry point (build → create → publish → validate → optional activate)
 
 3. **Translate the criteria into segment `sql`** per
    [../../reference/creating-segments.md](../../reference/creating-segments.md): `search` for
@@ -352,13 +502,30 @@ There are two entry points; they converge on the same build-and-activate core.
    `ssot__Individual__dlm` require projecting `KQ_Id__c` alongside `ssot__Id__c`)*. **No
    `DISTINCT`/aggregation**, no `SELECT *`/`CASE`/aliases; fully-qualified columns; joins only on
    declared keys; subqueries only in `WHERE`. Never submit a `COUNT(DISTINCT …)` — Data 360 rejects
-   it as a segment. Create/publish in the **routed dataspace** — `Development` (DEV-US) for HCP
-   segments, `DTC` for patient segments — unless the user explicitly chose another. For ZIP-radius
+   it as a segment. Create/publish in the **routed dataspace** — an **HCP** segment goes to the HCP
+   dataspace the user chose (`Development` / `STG_US` / `PRD_US`); a **patient/D2C** segment goes to
+   `DTC` — unless the user explicitly chose another. For ZIP-radius
    populations, reuse the **same precomputed ZIP5 `IN` list** from the count
    ([../../reference/zip-radius.md](../../reference/zip-radius.md)).
-4. **Confirm before writing** (show the user the segment definition **and dataspace**), then
-   `execute` create and `execute` publish.
-5. **Sanity-check membership against the count.** Pull the segment's member count and confirm it
+4. Propose deterministic names — **tag the audience** so every segment name states who it targets:
+   - **Audience tag (required):** a **doctor** segment is tagged **`HCP`**; a **patient/consumer**
+     segment is tagged **`D2C`**. Put the tag in both names.
+   - `displayName`: human-readable, prefixed `DEMO_` for demo segments, and include the audience tag —
+     e.g. `DEMO_HCP_<brand>_Email_Openers_90d` or `DEMO_D2C_<brand>_Brand_Profile`.
+   - `developerName`: API-safe and stable, also carrying the tag — e.g. `DEMO_HCP_<brand>_email_openers_90d`;
+     do not overwrite an existing segment silently.
+   - `publishSchedule`: `NoRefresh` unless the user requested and approved another schedule.
+5. **Confirm before creating.** Show display/API name, dataspace, SegmentOn DMO, plain-English
+   filters, membership SQL, expected Recipe A count, and whether empty profile streams will force
+   zero members. Creation is a write; wait for explicit confirmation.
+6. `search` → `payload_examples` → `execute` **`d360_segment_create`** with the routed
+   `dataspace` / `input.dataSpace`, `segmentType: "Dbt"`, `segmentOnApiName`, and one DBT model whose
+   SQL is the membership query. Capture the returned segment ID and API name.
+7. **Do not publish automatically just because create succeeded.** Read the created definition
+   with `d360_segment_get`, show it to the user, and ask for publish confirmation. On confirmation,
+   `execute` **`d360_segment_publish`** using the returned segment ID.
+8. **Sanity-check membership against the count.** Follow Recipe S to pull the segment's member
+   count and publication status, then confirm it
    matches the Recipe A count for the same criteria — same population, so they should agree. If they
    diverge, **stop and reconcile** before activating (a mismatch usually means the segment SQL and the
    count SQL don't express the same filters).
@@ -367,14 +534,40 @@ There are two entry points; they converge on the same build-and-activate core.
      meaningfully validated), **always return the literal segment `sql`** you built/submitted —
      copy-pasteable — under a **SQL (for validation)** heading, so the team can validate the
      definition in lieu of members. Still do not dump PII rows.
-6. **Validate against OCL/Snowflake** (Recipe A steps 7–9) if this population isn't already validated.
-7. *(Rebuild variant only)* **Confirm segment equivalence** — list the rebuilt filters vs. the
+9. **Validate against OCL/Snowflake** (Recipe A steps 7–9) if this population isn't already validated.
+10. *(Rebuild variant only)* **Confirm segment equivalence** — list the rebuilt filters vs. the
    reference for the user/customer team to confirm they match.
-8. **Activate to SFMC:** `search` the Activation family, wire the segment to the **existing** SFMC
+11. **Activation is optional and separately confirmed.** Do not activate merely because the user
+   asked to create a segment. If requested, show the existing target and activation configuration,
+   require governance/user confirmation, then `search` the Activation family, wire the segment to
+   the **existing** SFMC
    activation target (do **not** create a new target), `execute` to trigger, and **confirm SFMC
    receipt**.
-9. **Report the success criteria:** for a rebuild — (1) count match, (2) segment equivalence, (3)
+12. **Read back lifecycle status.** Follow Recipe S after create/publish/activation and report the
+    evaluated member count, publication state, and activation state from the APIs.
+13. **Report the success criteria:** for a rebuild — (1) count match, (2) segment equivalence, (3)
    SFMC receipt; for build-from-count — (1) segment membership matches the count, (2) SFMC receipt.
+
+## Recipe U — Update an existing segment
+
+**Trigger:** the user asks to change an existing segment's criteria (broaden/narrow filters, change
+brand, window, threshold), rename it, or change its schedule.
+
+1. **Ask dataspace + audience first** (Dev/Stage/Prod; HCP vs patient) if not already named, then
+   load the routed YAML.
+2. **Read the current segment** with `d360_segment_get` (Recipe S) and restate its definition in
+   plain English so the user confirms what they're changing from.
+3. **Re-map the new criteria** through the semantic layer (same rules as Recipe B). Rebuild the
+   **membership SQL** (SegmentOn PK only — no `COUNT`, no PII).
+4. **Count the new population first (Recipe A) and dual-validate against Snowflake** — report Data
+   360 + Snowflake source counts (or the Snowflake SQL + PENDING/N/A if not connected / stream not
+   ACTIVE). This shows the impact of the change before writing.
+5. **Confirm before writing.** Show old vs new definition, dataspace, and the new expected count.
+6. `search` → `payload_examples` → `execute` **`d360_segment_update`** in the routed dataspace.
+   Do not re-publish or re-activate automatically — publish only on confirmation
+   (`d360_segment_publish`), and re-activate only on separate confirmation.
+7. **Read back** with Recipe S (member count, publication status, activation status) and report the
+   three states separately.
 
 ### Segment-definition SQL is its own thing — see the reference
 
@@ -430,7 +623,14 @@ answer into business language; keep the technical form for execution and for any
   routed model (e.g. *HCP* or *Patient*, not
   `ssot__Individual__dlm`; *Salutation*, not `ssot__Salutation__c`). The labels are governed in
   the locked semantic layer, so this works in `strict` mode without a live metadata call.
-- **State counts in plain language.** "**1 HCP** matches" / "**191,425 patients** match" — never `COUNT(DISTINCT ssot__Id__c) = 1`, and never accompany the number with PII samples.
+- **State counts in plain language — always both sides.** Lead with:
+
+  > **Data 360 count:** 376,055 HCPs  
+  > **Snowflake source count:** … HCPs (Source: `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL`)
+
+  Never show only the D360 number when a Snowflake stream source exists. Never accompany counts
+  with PII samples.
+
 - **Describe criteria in plain English.** "HCPs whose salutation is *Mr.*" — not a raw SQL `WHERE` clause.
 - **Hide SQL and API names by default.** Don't lead with the segment `sql` or DMO/field API names.
   Offer them on demand (*"want to see the technical definition?"*) or tuck them under a clearly
@@ -441,6 +641,14 @@ answer into business language; keep the technical form for execution and for any
   count-only / membership-PK-only — never add PII columns "for clarity."
 - **Confirm mutations in business terms too.** At the mutation gate (create/publish/activate), lead
   with the plain-English definition; the raw SQL is the appendix, not the headline.
+- **Report segment lifecycle as three separate facts.** Say:
+
+  > **Segment members:** 185,412 HCPs  
+  > **Publication:** Published (last evaluated …)  
+  > **Activation:** Not activated
+
+  Never say “activated” merely because the segment is published or because an activation target is
+  ACTIVE. Activation requires a matching activation binding and its returned status.
 - **Friendly phrasing never relaxes the data guardrails.** Still never surface PII, still never dump rows — including when explaining HCP or patient/DTC counts.
 
 ---
@@ -449,9 +657,23 @@ answer into business language; keep the technical form for execution and for any
 
 - **Speak marketer, not schema.** User-facing output uses business `label`s and plain-English counts/criteria (see *Talking to the user*), never raw DMO/field API names or SQL by default. Keep the technical form for execution; show it only on request or in a labeled Technical-details aside. **Exception:** in POC Staging (`STG_US`) or Development (`DEV-US`), empty count/segment results **must** include the literal SQL under **SQL (for validation)**.
 - **PII never rides with a count.** For every HCP or patient/DTC count — including **`STG_US`
-  (staging)** and **`PRD_US` (production)** — answer with the number (and validation metadata)
-  only. Count SQL must `SELECT COUNT(DISTINCT …)` only — filters may use PII columns; results
-  must not. No sample people, no PII grids, no health-attribute row dumps. See *PII-safe counts*.
+  (staging)** and **`PRD_US` (production)** — answer with the numbers (D360 + Snowflake source)
+  and validation metadata only. Count SQL must `SELECT COUNT(DISTINCT …)` only — filters may use
+  PII columns; results must not. No sample people, no PII grids, no health-attribute row dumps.
+  See *PII-safe counts*.
+- **Dual-report D360 + Snowflake source — for count, create, update, and status.** For any operation
+  that yields a member count, look up the stream source in
+  [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md) and
+  report **Data 360 count** and **Snowflake source count** per
+  [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md).
+  **If Snowflake is not connected or the data stream is not ACTIVE (or not Snowflake-fed), still
+  provide the exact Snowflake validation SQL** and mark the Snowflake side **PENDING** / **N/A —
+  connector not Snowflake**. Do not ship a D360-only answer when a Snowflake table feeds the stream.
+- **Create, publish, and activate are separate writes.** A request to create authorizes create only,
+  not publish or activation. Show the definition and dataspace before create; read it back after
+  create; obtain separate confirmation before publish and again before activation.
+- **Read segment status without reading members.** Use segment get/count plus activation list/get.
+  Do not use `d360_segment_member_list` for status/count reporting.
 - **POC Staging — return SQL when empty.** For counts (Recipe A) and segments (Recipe B) in **`STG_US`** or **`Development`**: if the result is 0 / empty / underlying DMO unpopulated, return the exact SQL that was run (or the segment `sql` that was built) so the team can validate it in lieu of a result. That SQL stays count-only / membership-PK-only — **still never dump PII rows** (same bar as `PRD_US`).
 - **Production counts are not a preview.** In **`PRD_US`**, never return people or PII to "validate"
   a count; use the integer (+ OCL/Snowflake benchmark). Writes still need governance sign-off.
@@ -490,8 +712,13 @@ You:
 3. Map through that model (anchor, path, fields, dataspace).
 4. `search "query sql count"` → get the Query op name.
 5. `execute` a `COUNT(DISTINCT ...)` query with `dataspace: Development` → e.g. `12,431` (D360 refresh: `<ts>`).
-6. Prompt/run the OCL/Snowflake benchmark → `12,290` (snapshot: `<ts>`).
-7. Delta = 1.1% → within 2–5% threshold, same refresh window → **validated: ~12.3–12.4K opted-in `<brand>` HCPs in NY**.
+6. Map the DMO to its Snowflake stream table → run (or request) the source count → report:
+
+   > **Data 360 count:** 12,431  
+   > **Snowflake source count:** 12,290 (Source: `DATABASE.SCHEMA.TABLE`)
+
+7. Prompt/run the formal OCL/Snowflake benchmark if required for the **"validated"** label → delta
+   within 2–5%, same refresh window → **validated**.
 
 Then (Recipe B — build from that count):
 

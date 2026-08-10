@@ -53,6 +53,23 @@ execute d360_activation_target_get   { "activationTargetId": "<id from the list>
 Capture the target's **`name`** (this is what the activation references as
 `activationTargetName`), its `platformType`, and `status` (must be `ACTIVE`).
 
+### Read whether a segment is activated
+
+Activation status must be derived from an **Activation binding**, not from the segment's publish
+status and not from an ACTIVE target:
+
+1. Read the segment (`d360_segment_get`) and capture its `marketSegmentId` / segment ID.
+2. List activations (`d360_activation_list`) and match records that reference that exact segment.
+3. Fetch every match (`d360_activation_get`) and report activation ID/name, target, returned status,
+   refresh type, last run/success timestamp, and returned error when present.
+4. Classify:
+   - **ACTIVATED** — at least one matching binding is active/successful.
+   - **CONFIGURED, NOT ACTIVE** — binding exists but is draft/inactive/failed.
+   - **NOT ACTIVATED** — no binding references the segment.
+   - **UNKNOWN** — insufficient API evidence; state the access/API reason.
+
+Never infer **ACTIVATED** merely because the segment itself is `ACTIVE`/published.
+
 **If the list is empty, stop.** There is no target to activate to — ask a human to create one (or, if
 approved, see Step 0). Do not silently create a target to unblock yourself.
 

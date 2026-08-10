@@ -6,7 +6,254 @@ additional illustrative marketer prompts to tune the Skill.
 
 ---
 
+## How the agent runs every prompt
+
+1. **It asks the dataspace first — Dev, Stage, or Prod** — for *every* use case (count, create,
+   update, or status). It never silently defaults. Prompts below name the dataspace so you can demo
+   without the follow-up question.
+2. **It routes by audience.** A **doctor / HCP** prompt uses the **HCP** model in that dataspace;
+   a **patient / consumer (D2C)** prompt uses the **DTC** model. If you don't say which, it asks
+   "HCP or patient (DTC)?".
+3. **It dual-validates against Snowflake.** Every count — including the count behind a create/update
+   and any status check — is reported as **Data 360 count** + **Snowflake source count**. If
+   Snowflake isn't connected or the stream isn't ACTIVE, it still hands you the **validation SQL**
+   and marks the Snowflake side **PENDING / N/A**.
+
+## Tags (how to read prompts)
+
+| Tag | Meaning |
+| --- | --- |
+| **D360 and Snowflake count** | DMO is fed by an **ACTIVE Snowflake stream** → dual-report **Data 360 count** + **Snowflake source count**. Demoable today. |
+| **HCP** | Doctor audience → HCP model (`dataModel-dev/stg-us/prd-us.yaml`). |
+| **D2C** | Patient/consumer audience → DTC model (`dataModel-dtc.yaml`). |
+| **Dev prompt** | Dataspace `Development`. |
+| **Stage prompt** | Dataspace `STG_US`. |
+| **Prod prompt** | Dataspace `PRD_US`. |
+
+**Demoable-with-data quick list** (has rows today — safe to run live):
+- **HCP · Stage:** headquarter email opens/clicks/sends (all brands + Paxlovid/Abrysvo/Nurtec/Comirnaty), IQVIA Eliquis NRx.
+- **HCP · Dev / Prod:** CRM email openers/clickers/sends + HCP identity universe (Individuals, emails, party IDs).
+- **D2C · DTC:** brand-profile audiences, opted-in consumers, consent preferences, patient identity universe.
+
+Full dual-validation SQL catalog: [../usecase-prompts/demo-segments-d360-snowflake.md](../usecase-prompts/demo-segments-d360-snowflake.md).
+
+---
+
+## Sample use cases
+
+Each use case below maps to a DMO that currently has rows. Paste the prompt as-is for a live demo.
+Live Data 360 snapshots as of 2026-08-10.
+
+### HCP · Stage — engagement & prescribing
+
+| Tags | Use case (prompt) | DMO | Approx. Data 360 count |
+| --- | --- | --- | ---: |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs opened a headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 376,660 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs clicked a headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 46,472 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs were sent a headquarter email? | `stg_Headquarter_Email_Engagement__dlm` | 1,663,037 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs opened a Paxlovid headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 134,790 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs clicked a Paxlovid headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 16,879 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs opened an Abrysvo headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 92,016 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs opened a Nurtec headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 14,556 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs opened a Comirnaty headquarter email in the last 90 days? | `stg_Headquarter_Email_Engagement__dlm` | 98,423 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs have Eliquis NRx volume greater than zero in IQVIA competitive prescribing? | `stg_IQVIACompetitorSalesFact__dlm` | 606,740 |
+| **HCP · Stage · D360 and Snowflake count** | In Stage, how many HCPs have Eliquis NRx volume greater than 10 in IQVIA competitive prescribing? | `stg_IQVIACompetitorSalesFact__dlm` | 2,142 |
+
+> Create-segment variants (same population, tagged **HCP**): *"In Stage, create an HCP segment of Paxlovid HQ email openers in the last 90 days."* / *"In Stage, create an HCP segment of Eliquis IQVIA NRx > 10."*
+
+### HCP · Dev — identity & CRM email
+
+| Tags | Use case (prompt) | DMO | Approx. Data 360 count |
+| --- | --- | --- | ---: |
+| **HCP · Dev prompt** | In Dev, how many HCP individuals are in the profile? | `dev_Individual__dlm` | 1,517,180 |
+| **HCP · Dev prompt** | In Dev, how many unified HCP profiles are there? | `dev_UnifiedIndividualRs1__dlm` | 1,097,325 |
+| **HCP · Dev prompt** | In Dev, how many HCPs have a contact-point email on file? | `dev_ContactPointEmail__dlm` | 999,918 |
+| **HCP · Dev prompt** | In Dev, how many HCPs have a party-identification record? | `dev_PartyIdentification__dlm` | 1,517,180 |
+| **HCP · Dev prompt** | In Dev, how many HCPs opened an email? | `dev_EmailEngagement__dlm` | 257,704 |
+| **HCP · Dev prompt** | In Dev, how many HCPs clicked an email? | `dev_EmailEngagement__dlm` | 56,412 |
+| **HCP · Dev prompt** | In Dev, how many HCPs were sent an email? | `dev_EmailEngagement__dlm` | 530,607 |
+| **HCP · Dev prompt** | In Dev, how many HCPs appear on the header-unsubscribe brand list? | `dev_HeaderUnsubscribeBrand__dlm` | 35 |
+
+> Snowflake side for CRM email: **N/A — connector not Snowflake** (agent still returns the validation SQL). Create-segment example: *"In Dev, create an HCP segment of email openers."*
+
+### HCP · Prod — identity & CRM email
+
+| Tags | Use case (prompt) | DMO | Approx. Data 360 count |
+| --- | --- | --- | ---: |
+| **HCP · Prod prompt** | In Prod, how many HCP individuals are in the profile? | `prd_Individual__dlm` | 1,517,180 |
+| **HCP · Prod prompt** | In Prod, how many HCPs have a contact-point email on file? | `prd_ContactPointEmail__dlm` | 999,918 |
+| **HCP · Prod prompt** | In Prod, how many HCPs opened an email? | `prd_EmailEngagement__dlm` | 422,129 |
+| **HCP · Prod prompt** | In Prod, how many HCPs clicked an email? | `prd_EmailEngagement__dlm` | 138,623 |
+| **HCP · Prod prompt** | In Prod, how many HCPs were sent an email? | `prd_EmailEngagement__dlm` | 867,353 |
+
+> Create-segment example: *"In Prod, create an HCP segment of email clickers."* (confirm before any Prod write.)
+
+### Patient (D2C) · DTC — brand, consent & identity
+
+| Tags | Use case (prompt) | DMO | Approx. Data 360 count |
+| --- | --- | --- | ---: |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Premarin brand profile? | `DTC_BrandProfile__dlm` | 37,463 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Comirnaty brand profile? | `DTC_BrandProfile__dlm` | 23,751 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Litfulo brand profile? | `DTC_BrandProfile__dlm` | 8,425 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Paxlovid brand profile? | `DTC_BrandProfile__dlm` | 3,760 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Nurtec brand profile? | `DTC_BrandProfile__dlm` | 1,901 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have any brand profile? | `DTC_BrandProfile__dlm` | 194,447 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are opted in (consent status IN)? | `DTC_ContactPointConsent__dlm` | 170,719 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have a consent preference recorded? | `DTC_ConsentPreference__dlm` | 341,661 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumer individuals are in the DTC profile? | `DTC_Individual__dlm` | 193,061 |
+| **D2C · D360 and Snowflake count** | For patients, how many unified consumer profiles are there? | `DTC_UnifiedIndividualDtc__dlm` | 191,534 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have a contact-point email on file? | `DTC_ContactPointEmail__dlm` | 176,989 |
+
+> Create-segment variants (tagged **D2C**): *"For patients, create a D2C segment of Premarin brand-profile consumers."* / *"For patients, create a D2C segment of opted-in consumers."*
+>
+> **Do not demo yet:** DTC email opens/clicks (`DTC_Email_Engagement__dlm` has rows but person linkage is test/partial).
+
+### Empty today — skip for live demos
+
+These are schema-mapped but return **0** until streams load (ask still works; agent returns SQL + caveat):
+
+- **HCP Dev/Prod:** address / state, website visits, NBRx / wrote an Rx, contact-point consent, HCP segmentation
+- **HCP Stage:** Individual, UnifiedIndividual, ContactPointEmail, Address, Consent, HcpSegmentation (profile DMOs empty — only HQ email + IQVIA are live)
+
+---
+
+## D360 and Snowflake count (Stage — demo dual validation)
+
+Use these for demos where you show **both** numbers. Live D360 snapshots as of 2026-08-10.
+
+### Headquarter email — DMO `stg_Headquarter_Email_Engagement__dlm`
+
+Snowflake: `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL` · Stream `STG_HCP_OCL_HEADQUARTER_EMAIL`
+
+| Tag | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D360 and Snowflake count** | In Stage, how many HCPs opened a headquarter email in the last 90 days? | 376,660 |
+| **D360 and Snowflake count** | In Stage, how many HCPs clicked a headquarter email in the last 90 days? | 46,472 |
+| **D360 and Snowflake count** | In Stage, how many HCPs were sent a headquarter email? | 1,663,037 |
+| **D360 and Snowflake count** | In Stage, how many HCPs opened a Paxlovid headquarter email in the last 90 days? | 134,790 |
+| **D360 and Snowflake count** | In Stage, how many HCPs clicked a Paxlovid headquarter email in the last 90 days? | 16,879 |
+| **D360 and Snowflake count** | In Stage, how many HCPs opened an Abrysvo headquarter email in the last 90 days? | 92,016 |
+| **D360 and Snowflake count** | In Stage, how many HCPs opened a Nurtec headquarter email in the last 90 days? | 14,556 |
+| **D360 and Snowflake count** | In Stage, how many HCPs opened a Comirnaty headquarter email in the last 90 days? | 98,423 |
+
+**Expected behavior:** Return
+
+```text
+**Data 360 count:** <N>
+**Snowflake source count:** <M>
+  Source: CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL
+```
+
+### IQVIA competitive prescribing — DMO `stg_IQVIACompetitorSalesFact__dlm`
+
+Snowflake: `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING` · Stream `STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING`
+
+| Tag | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D360 and Snowflake count** | In Stage, how many HCPs have Eliquis NRx volume greater than zero in IQVIA competitive prescribing? | 606,740 |
+| **D360 and Snowflake count** | In Stage, how many HCPs have Eliquis NRx volume greater than 10 in IQVIA competitive prescribing? | 2,142 |
+
+---
+
+## Patient (D2C) — DTC dataspace demo (dual validation)
+
+Patient/consumer use cases route to the **DTC** model ([../reference/dataModel-dtc.yaml](../reference/dataModel-dtc.yaml)).
+These DMOs are fed by **ACTIVE Snowflake streams**, so they dual-validate. Live D360 snapshots as of 2026-08-10.
+
+### Brand audience — DMO `DTC_BrandProfile__dlm`
+
+Snowflake: `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES` · Stream `DTC_BRAND_PROFILE`
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Premarin brand profile? | 37,463 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Comirnaty brand profile? | 23,751 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Litfulo brand profile? | 8,425 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Paxlovid brand profile? | 3,760 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are in the Nurtec brand profile? | 1,901 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have any brand profile? | 194,447 |
+
+### Consent audience — DMO `DTC_ContactPointConsent__dlm`
+
+Snowflake: `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_CONSENT_PREFERENCES` · Stream `DTC_OT_CONSENT_PREFERENCE`
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers are opted in (consent status IN)? | 170,719 |
+
+### Consent preferences — DMO `DTC_ConsentPreference__dlm`
+
+Snowflake: `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_CONSENT_PREFERENCES` · Stream `DTC_OT_CONSENT_PREFERENCE`
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have a consent preference recorded? | 341,661 |
+
+### Patient identity — DMOs `DTC_Individual__dlm` / `DTC_UnifiedIndividualDtc__dlm` / `DTC_ContactPointEmail__dlm`
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **D2C · D360 and Snowflake count** | For patients, how many consumer individuals are in the DTC profile? | 193,061 |
+| **D2C · D360 and Snowflake count** | For patients, how many unified consumer profiles are there? | 191,534 |
+| **D2C · D360 and Snowflake count** | For patients, how many consumers have a contact-point email on file? | 176,989 |
+
+**Expected behavior:** agent confirms **DTC** (patient) + dataspace, returns
+
+```text
+**Data 360 count:** <N>
+**Snowflake source count:** <M>
+  Source: CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES
+```
+
+> **Data caveat:** DTC **email engagement** (`DTC_Email_Engagement__dlm`) is **test/partial** at seed —
+> do not demo patient email opens/clicks yet. Use brand-profile, consent, and identity audiences above.
+
+---
+
+## HCP — Dev & Prod dataspace demo (Snowflake-fallback behavior)
+
+HCP email engagement is **populated** in both `Development` and `PRD_US`, but those DMOs are
+**CRM-loaded, not Snowflake-stream-fed**. So the agent returns the Data 360 count **and still hands
+you the Snowflake validation SQL** with **Snowflake source count: N/A — connector not Snowflake**.
+Great for demoing the fallback rule. Live D360 snapshots as of 2026-08-10.
+
+### Dev — identity & CRM email
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **HCP · Dev prompt** | In Dev, how many HCP individuals are in the profile? | 1,517,180 |
+| **HCP · Dev prompt** | In Dev, how many unified HCP profiles are there? | 1,097,325 |
+| **HCP · Dev prompt** | In Dev, how many HCPs have a contact-point email on file? | 999,918 |
+| **HCP · Dev prompt** | In Dev, how many HCPs have a party-identification record? | 1,517,180 |
+| **HCP · Dev prompt** | In Dev, how many HCPs opened an email? | 257,704 |
+| **HCP · Dev prompt** | In Dev, how many HCPs clicked an email? | 56,412 |
+| **HCP · Dev prompt** | In Dev, how many HCPs were sent an email? | 530,607 |
+| **HCP · Dev prompt** | In Dev, how many HCPs appear on the header-unsubscribe brand list? | 35 |
+
+### Prod — identity & CRM email
+
+| Tags | Prompt | Data 360 count |
+| --- | --- | ---: |
+| **HCP · Prod prompt** | In Prod, how many HCP individuals are in the profile? | 1,517,180 |
+| **HCP · Prod prompt** | In Prod, how many HCPs have a contact-point email on file? | 999,918 |
+| **HCP · Prod prompt** | In Prod, how many HCPs opened an email? | 422,129 |
+| **HCP · Prod prompt** | In Prod, how many HCPs clicked an email? | 138,623 |
+| **HCP · Prod prompt** | In Prod, how many HCPs were sent an email? | 867,353 |
+
+**Expected behavior:**
+
+```text
+**Data 360 count:** <N>
+**Snowflake source count:** N/A — connector not Snowflake (CRM-loaded DMO)
+**Snowflake validation SQL (when a stream is connected):**
+  SELECT COUNT(DISTINCT INDIVIDUAL_ID) FROM <DB.SCHEMA.TABLE> WHERE ACTION = 'Open';
+```
+
+---
+
 ## Phase 1 — Pull (natural-language count)
+
+> **Note:** The classic POC prompts below are tagged **Dev prompt** / schema-ready. Many return **0** until website, address, consent, or NBRx streams load. For a dual D360+Snowflake demo, use the **D360 and Snowflake count** section above instead.
 
 **Primary POC prompt:**
 
@@ -70,6 +317,10 @@ is still `VERIFY` — attaches a caveat. Never guesses DMOs/fields/joins from na
 ---
 
 ## Phase 2 — Push (describe → rebuild → activate)
+
+**From a counted population (demo UI):** after any count-ready prompt, use **Create segment** in
+the demo UI (or paste the Skill create prompt). Membership SQL projects SegmentOn PKs only —
+see [../usecase-prompts/create-segment-from-count.md](../usecase-prompts/create-segment-from-count.md).
 
 **Step 1 — Describe the reference segment:**
 

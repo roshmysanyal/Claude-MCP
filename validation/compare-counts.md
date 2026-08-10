@@ -66,6 +66,17 @@ it cannot be — that documentation is itself a valid POC finding.
 
 ## Reminder
 
+- **Always dual-report** D360 vs the Snowflake **data-stream source table** first — see
+  [d360-vs-snowflake-stream.md](d360-vs-snowflake-stream.md).
 - **Einstein counts are never the benchmark.** Only OCL/Snowflake.
 - A **VALIDATED** verdict on the Pull count is the exit gate for Phase 1. In Phase 2, the rebuilt
   segment's count must also reach **VALIDATED** before activation counts toward success.
+
+### Required presentation (stream-source parity)
+
+```text
+**Data 360 count:** <N>
+**Snowflake source count:** <M>
+  Source: <DATABASE>.<SCHEMA>.<TABLE>
+```
+
