@@ -706,9 +706,123 @@ const PROMPTS = [
     filters: "ConsentPreference PreferenceName=PREMARIN PreferenceValue=IN + Consent",
     source: DTC_PREF_SOURCE,
   },
+
+  // Business-language: create segment + dual D360/Snowflake count
+  {
+    id: "biz-dtc-premarin-optin-create",
+    tag: "Create + dual count",
+    dataspace: "DTC",
+    sample: true,
+    createFlow: true,
+    countId: "dtc-premarin-optin",
+    label: "Create · Premarin opt-in",
+    question: "Build D2C Premarin opted-in segment + dual-count",
+    prompt:
+      "For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Before you create it, show me the expected count. After create, give me the Data 360 segment count and the Snowflake source count for validation.",
+    filters: "BrandProfile PREMARIN + ContactPointConsent IN → create DEMO_D2C segment + dual-report",
+    source: DTC_BRAND_SOURCE,
+  },
+  {
+    id: "biz-dtc-optin-email-create",
+    tag: "Create + dual count",
+    dataspace: "DTC",
+    sample: true,
+    createFlow: true,
+    countId: "dtc-optin-email",
+    label: "Create · opt-in + email",
+    question: "Build D2C opted-in + email segment + dual-count",
+    prompt:
+      "For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Confirm the filters, create the segment, then compare the Data 360 count to the Snowflake source count.",
+    filters: "ContactPointConsent IN + ContactPointEmail → create + dual-report",
+    source: DTC_CONSENT_SOURCE,
+  },
+  {
+    id: "biz-dtc-premarin-optin-email-create",
+    tag: "Create + dual count",
+    dataspace: "DTC",
+    sample: true,
+    createFlow: true,
+    countId: "dtc-premarin-optin-email",
+    label: "Create · Premarin opt-in + email",
+    question: "Build D2C Premarin marketable segment + dual-count",
+    prompt:
+      "For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Share the Data 360 count and the matching Snowflake validation count.",
+    filters: "BrandProfile PREMARIN + Consent IN + ContactPointEmail → create + dual-report",
+    source: DTC_BRAND_SOURCE,
+  },
+  {
+    id: "biz-dtc-comirnaty-optin-create",
+    tag: "Create + dual count",
+    dataspace: "DTC",
+    sample: true,
+    createFlow: true,
+    countId: "dtc-comirnaty-optin",
+    label: "Create · Comirnaty opt-in",
+    question: "Build D2C Comirnaty opted-in segment + dual-count",
+    prompt:
+      "For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Report Data 360 vs Snowflake counts after the segment is created.",
+    filters: "BrandProfile COMIRNATY + Consent IN → create + dual-report",
+    source: DTC_BRAND_SOURCE,
+  },
+  {
+    id: "biz-dtc-premarin-pref-create",
+    tag: "Create + dual count",
+    dataspace: "DTC",
+    sample: true,
+    createFlow: true,
+    countId: "dtc-premarin-pref-in",
+    label: "Create · Premarin preference IN",
+    question: "Build D2C Premarin preference-IN segment + dual-count",
+    prompt:
+      "For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Validate the member count in Data 360 against Snowflake.",
+    filters: "ConsentPreference PREMARIN IN → create + dual-report",
+    source: DTC_PREF_SOURCE,
+  },
+  {
+    id: "biz-stg-paxlovid-open-create",
+    tag: "Create + dual count",
+    dataspace: "STG_US",
+    sample: true,
+    createFlow: true,
+    countId: "stg-hq-paxlovid-opened-90d",
+    label: "Create · Paxlovid HQ openers",
+    question: "Build HCP Paxlovid HQ openers segment + dual-count",
+    prompt:
+      "In Stage: build an HCP segment of HCPs who opened a Paxlovid headquarter email in the last 90 days. After create, give me the Data 360 count and the Snowflake source-table count side by side.",
+    filters: "HQ email PAXLOVID OPENED 90d — count dual-validates; segment draft until Stage profile loads",
+    source: HQ_SOURCE,
+  },
+  {
+    id: "biz-stg-hq-click-create",
+    tag: "Create + dual count",
+    dataspace: "STG_US",
+    sample: true,
+    createFlow: true,
+    countId: "stg-hq-clicked-90d",
+    label: "Create · HQ clickers",
+    question: "Build HCP HQ clickers segment + dual-count",
+    prompt:
+      "In Stage: create an HCP segment of HCPs who clicked a headquarter email in the last 90 days. Compare Data 360 to Snowflake.",
+    filters: "HQ email CLICKED 90d — count dual-validates; segment draft until Stage profile loads",
+    source: HQ_SOURCE,
+  },
+  {
+    id: "biz-stg-eliquis-nrx-create",
+    tag: "Create + dual count",
+    dataspace: "STG_US",
+    sample: true,
+    createFlow: true,
+    countId: "stg-iqvia-eliquis-nrx-gt10",
+    label: "Create · Eliquis NRx > 10",
+    question: "Build HCP Eliquis NRx>10 segment + dual-count",
+    prompt:
+      "In Stage: build an HCP segment of HCPs with Eliquis NRx volume greater than 10 in IQVIA competitive prescribing. Show Data 360 count vs Snowflake source count.",
+    filters: "IQVIA ELIQUIS NRx > 10 — count dual-validates; segment draft until Stage profile loads",
+    source: IQVIA_SOURCE,
+  },
 ];
 
-/** FAQ Sample use cases — one group per dataspace. */
+/** FAQ Sample use cases — one group per dataspace, plus create+dual business prompts. */
 const FAQ_GROUPS = [
   {
     dataspace: "Development",
@@ -723,6 +837,7 @@ const FAQ_GROUPS = [
     tag: "D360 and Snowflake count",
     className: "tag-dual",
     note: "HCP · HQ email & IQVIA — ACTIVE Snowflake streams",
+    excludeCreateFlow: true,
   },
   {
     dataspace: "PRD_US",
@@ -737,6 +852,14 @@ const FAQ_GROUPS = [
     tag: "D2C prompt",
     className: "tag-dtc",
     note: "Patient · brand, consent, identity & combined multi-DMO segment counts",
+    excludeCreateFlow: true,
+  },
+  {
+    label: "Create segment + dual count",
+    tag: "Create + dual count",
+    className: "tag-dual",
+    note: "Business prompts: create HCP/D2C segment, then compare Data 360 vs Snowflake",
+    createFlowOnly: true,
   },
 ];
 
@@ -1118,6 +1241,226 @@ WHERE ui."Id__c" IN (
     )
 );`,
   },
+  "dtc-premarin-optin": {
+    displayName: "DEMO_D2C_Premarin_Opted_In",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'PREMARIN'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+);`,
+  },
+  "biz-dtc-premarin-optin-create": {
+    displayName: "DEMO_D2C_Premarin_Opted_In",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'PREMARIN'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+);`,
+  },
+  "dtc-optin-email": {
+    displayName: "DEMO_D2C_Opted_In_With_Email",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT c."PartyId__c"
+    FROM "DTC_ContactPointConsent__dlm" c
+    WHERE c."ConsentStatusId__c" = 'IN'
+      AND c."PartyId__c" IN (
+          SELECT e."PartyId__c"
+          FROM "DTC_ContactPointEmail__dlm" e
+      )
+);`,
+  },
+  "biz-dtc-optin-email-create": {
+    displayName: "DEMO_D2C_Opted_In_With_Email",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT c."PartyId__c"
+    FROM "DTC_ContactPointConsent__dlm" c
+    WHERE c."ConsentStatusId__c" = 'IN'
+      AND c."PartyId__c" IN (
+          SELECT e."PartyId__c"
+          FROM "DTC_ContactPointEmail__dlm" e
+      )
+);`,
+  },
+  "dtc-premarin-optin-email": {
+    displayName: "DEMO_D2C_Premarin_Opted_In_With_Email",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'PREMARIN'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+      AND bp."IndividualId__c" IN (
+          SELECT e."PartyId__c"
+          FROM "DTC_ContactPointEmail__dlm" e
+      )
+);`,
+  },
+  "biz-dtc-premarin-optin-email-create": {
+    displayName: "DEMO_D2C_Premarin_Opted_In_With_Email",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'PREMARIN'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+      AND bp."IndividualId__c" IN (
+          SELECT e."PartyId__c"
+          FROM "DTC_ContactPointEmail__dlm" e
+      )
+);`,
+  },
+  "dtc-comirnaty-optin": {
+    displayName: "DEMO_D2C_Comirnaty_Opted_In",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'COMIRNATY'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+);`,
+  },
+  "biz-dtc-comirnaty-optin-create": {
+    displayName: "DEMO_D2C_Comirnaty_Opted_In",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT bp."IndividualId__c"
+    FROM "DTC_BrandProfile__dlm" bp
+    WHERE bp."Brand__c" = 'COMIRNATY'
+      AND bp."IndividualId__c" IN (
+          SELECT c."PartyId__c"
+          FROM "DTC_ContactPointConsent__dlm" c
+          WHERE c."ConsentStatusId__c" = 'IN'
+      )
+);`,
+  },
+  "dtc-premarin-pref-in": {
+    displayName: "DEMO_D2C_Premarin_Preference_IN",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT c."PartyId__c"
+    FROM "DTC_ContactPointConsent__dlm" c
+    WHERE c."Id__c" IN (
+        SELECT p."ContactPointConsentId__c"
+        FROM "DTC_ConsentPreference__dlm" p
+        WHERE UPPER(p."PreferenceName__c") = 'PREMARIN'
+          AND p."PreferenceValue__c" = 'IN'
+    )
+);`,
+  },
+  "biz-dtc-premarin-pref-create": {
+    displayName: "DEMO_D2C_Premarin_Preference_IN",
+    segmentOn: "DTC_Individual__dlm",
+    creatable: true,
+    membershipSql: `SELECT i."Id__c", i."KQ_Id__c"
+FROM "DTC_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT c."PartyId__c"
+    FROM "DTC_ContactPointConsent__dlm" c
+    WHERE c."Id__c" IN (
+        SELECT p."ContactPointConsentId__c"
+        FROM "DTC_ConsentPreference__dlm" p
+        WHERE UPPER(p."PreferenceName__c") = 'PREMARIN'
+          AND p."PreferenceValue__c" = 'IN'
+    )
+);`,
+  },
+  "biz-stg-paxlovid-open-create": {
+    displayName: "DEMO_HCP_Stg_Paxlovid_HQ_Openers_90d",
+    segmentOn: "stg_Individual__dlm",
+    creatable: false,
+    caveat:
+      "Stage profile empty — draft membership SQL only until Individual/UnifiedIndividual load. Dual-count still works on HQ email DMO.",
+    membershipSql: `SELECT i."Id__c"
+FROM "stg_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT hq."IndividualId__c"
+    FROM "stg_Headquarter_Email_Engagement__dlm" hq
+    WHERE hq."Brand__c" = 'PAXLOVID'
+      AND hq."EngagementChannelAction__c" = 'OPENED'
+      AND hq."EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90' DAY
+);`,
+  },
+  "biz-stg-hq-click-create": {
+    displayName: "DEMO_HCP_Stg_HQ_Clickers_90d",
+    segmentOn: "stg_Individual__dlm",
+    creatable: false,
+    caveat: "Stage profile empty — draft membership SQL only.",
+    membershipSql: `SELECT i."Id__c"
+FROM "stg_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT hq."IndividualId__c"
+    FROM "stg_Headquarter_Email_Engagement__dlm" hq
+    WHERE hq."EngagementChannelAction__c" = 'CLICKED'
+      AND hq."EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90' DAY
+);`,
+  },
+  "biz-stg-eliquis-nrx-create": {
+    displayName: "DEMO_HCP_Stg_IQVIA_Eliquis_NRx_gt10",
+    segmentOn: "stg_Individual__dlm",
+    creatable: false,
+    caveat: "Stage profile empty — draft membership SQL only.",
+    membershipSql: `SELECT i."Id__c"
+FROM "stg_Individual__dlm" i
+WHERE i."Id__c" IN (
+    SELECT iq."IndividualId__c"
+    FROM "stg_IQVIACompetitorSalesFact__dlm" iq
+    WHERE iq."BrandName__c" = 'ELIQUIS'
+      AND iq."NRXVolume__c" > 10
+);`,
+  },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -1132,13 +1475,23 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function resolveCountId(idOrEntry) {
+  if (typeof idOrEntry === "object" && idOrEntry) {
+    return idOrEntry.countId || idOrEntry.id;
+  }
+  const entry = PROMPTS.find((p) => p.id === idOrEntry);
+  return (entry && entry.countId) || idOrEntry;
+}
+
 function countFor(id) {
-  const entry = liveCounts.counts && liveCounts.counts[id];
+  const key = resolveCountId(id);
+  const entry = liveCounts.counts && liveCounts.counts[key];
   return entry && typeof entry.d360 === "number" ? entry.d360 : null;
 }
 
 function statusFor(id) {
-  const entry = liveCounts.counts && liveCounts.counts[id];
+  const key = resolveCountId(id);
+  const entry = liveCounts.counts && liveCounts.counts[key];
   return (entry && entry.status) || "live";
 }
 
@@ -1221,7 +1574,12 @@ function renderFaqs() {
   root.innerHTML = "";
 
   FAQ_GROUPS.forEach((group) => {
-    const items = PROMPTS.filter((p) => p.dataspace === group.dataspace && p.sample);
+    const items = PROMPTS.filter((p) => {
+      if (!p.sample) return false;
+      if (group.createFlowOnly) return !!p.createFlow;
+      if (group.excludeCreateFlow && p.createFlow) return false;
+      return p.dataspace === group.dataspace;
+    });
     if (!items.length) return;
 
     const section = document.createElement("div");
@@ -1234,21 +1592,29 @@ function renderFaqs() {
     list.className = "faq-group-list";
 
     items.forEach((entry) => {
+      const countKey = resolveCountId(entry);
       const details = document.createElement("details");
       details.className = "faq";
       details.innerHTML = `
         <summary>
           <span>
             <span class="faq-cat ${group.className}">${escapeHtml(entry.tag)}</span>
-            ${escapeHtml(entry.question)} — <strong>${escapeHtml(formatCount(countFor(entry.id)))}</strong>
+            ${escapeHtml(entry.question)} — <strong>${escapeHtml(formatCount(countFor(entry)))}</strong>
           </span>
         </summary>
         <div class="faq-body">
           <p class="faq-prompt">${escapeHtml(entry.prompt)}</p>
-          <p class="faq-answer"><strong>Data 360 count:</strong> ${escapeHtml(formatCount(countFor(entry.id)))}
-            ${countBadge(entry.id)} · DMO <code>${escapeHtml(entry.source.dmo)}</code></p>
+          <p class="faq-answer"><strong>Data 360 count:</strong> ${escapeHtml(formatCount(countFor(entry)))}
+            ${countBadge(countKey)} · DMO <code>${escapeHtml(entry.source.dmo)}</code></p>
           <p class="faq-answer"><strong>Filters:</strong> ${escapeHtml(entry.filters)}</p>
-          ${statusNote(entry.id) ? `<p class="faq-answer note-empty">${escapeHtml(statusNote(entry.id))}</p>` : ""}
+          ${
+            entry.createFlow
+              ? `<p class="faq-answer"><strong>Agent flow:</strong> count → confirm → create DEMO_${
+                  entry.dataspace === "DTC" ? "D2C" : "HCP"
+                } segment → dual-report Data 360 vs Snowflake (SQL if stream inactive).</p>`
+              : ""
+          }
+          ${statusNote(countKey) ? `<p class="faq-answer note-empty">${escapeHtml(statusNote(countKey))}</p>` : ""}
           <button type="button" class="btn ghost faq-use" data-id="${entry.id}">Use this prompt</button>
         </div>
       `;
@@ -1394,6 +1760,7 @@ ${seg.membershipSql}
 
 Show the SQL before create. Then create with publishSchedule NoRefresh and confirm.
 After create, pull the segment member count and compare to the Recipe A count for the same filters.
+Also dual-report **Data 360 count** vs **Snowflake source count** (or provide the Snowflake validation SQL if the stream is not ACTIVE / not connected).
 ${seg.creatable ? "" : "NOTE: Stage profile DMOs are empty today — expect 0 members until Individual/UnifiedIndividual streams load; still create only if the team wants a draft definition."}`.trim();
 }
 

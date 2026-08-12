@@ -19,6 +19,40 @@ Do **not** include DTC email engagement in these demos — person linkage is tes
 
 ---
 
+**Created live (2026-08-12):**
+
+| Field | Value |
+| --- | --- |
+| Display name | `DEMO_D2C_Premarin_Opted_In` |
+| API name | `DTC_DEMO_D2C_Premarin_Opted_In` |
+| Dataspace | `DTC` |
+| SegmentOn | `DTC_Individual__dlm` |
+| Status | `ACTIVE` |
+| **Data 360 segment member count** | **26,531** |
+| Recipe A count (same filters) | 26,531 (match) |
+
+**Snowflake validation SQL** (stream ACTIVE — run in Snowflake to dual-report):
+
+```sql
+-- Brand side
+SELECT COUNT(DISTINCT INDIVIDUAL_ID) -- confirm column name in source
+FROM CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES
+WHERE UPPER(BRAND) = 'PREMARIN';
+
+-- Consent side (opt-in) — join path depends on source keys; agent should align filters
+-- Source stream: DTC_OT_EMAIL_CONSENT / DTC_OT_CONSENT_PREFERENCE
+```
+
+If Snowflake is not reachable from the agent session:
+
+```text
+**Data 360 count:** 26,531
+**Snowflake source count:** PENDING (provide validation SQL above)
+  Source: CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES
+```
+
+---
+
 ## Use case A — Brand profile + opted in
 
 **Prompt:** For patients, how many Premarin brand-profile consumers are opted in?

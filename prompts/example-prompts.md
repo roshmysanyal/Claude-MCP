@@ -128,6 +128,43 @@ These showcase **segment-style counts** that join 2–5 populated DTC DMOs. Live
 
 > Create-segment examples: *"For patients, create a D2C segment of opted-in Premarin brand-profile consumers."* / *"For patients, create a D2C segment of opted-in consumers with email on file."*
 
+### Build a segment + dual-count (business prompts)
+
+Paste these to the agent when you want it to **create a segment** and then report **Data 360 count vs Snowflake source count**. Dataspace and audience are named so the Skill does not need to re-ask.
+
+| Tags | Business prompt | Expected D360 count | Dual-validate? |
+| --- | --- | ---: | --- |
+| **D2C · create + dual** | For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Before you create it, show me the expected count. After create, give me the Data 360 segment count and the Snowflake source count for validation. | ~26,531 | Yes (ACTIVE streams) |
+| **D2C · create + dual** | For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Confirm the filters, create the segment, then compare the Data 360 count to the Snowflake source count. | ~170,455 | Yes |
+| **D2C · create + dual** | For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Share the Data 360 count and the matching Snowflake validation count. | ~26,529 | Yes |
+| **D2C · create + dual** | For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Report Data 360 vs Snowflake counts after the segment is created. | ~22,722 | Yes |
+| **D2C · create + dual** | For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Validate the member count in Data 360 against Snowflake. | ~27,443 | Yes |
+| **HCP · Stage · create + dual** | In Stage: build an HCP segment of HCPs who opened a Paxlovid headquarter email in the last 90 days. After create, give me the Data 360 count and the Snowflake source-table count side by side. | ~134,790 | Count yes; **segment draft only** until Stage profile DMOs load |
+| **HCP · Stage · create + dual** | In Stage: create an HCP segment of HCPs who clicked a headquarter email in the last 90 days. Compare Data 360 to Snowflake. | ~46,472 | Count yes; segment draft only |
+| **HCP · Stage · create + dual** | In Stage: build an HCP segment of HCPs with Eliquis NRx volume greater than 10 in IQVIA competitive prescribing. Show Data 360 count vs Snowflake source count. | ~2,142 | Count yes; segment draft only |
+
+**Expected agent output shape:**
+
+```text
+**Data 360 count:** <N>
+**Snowflake source count:** <M>
+  Source: DATABASE.SCHEMA.TABLE
+
+Segment: DEMO_D2C_… / DEMO_HCP_… (<API name>)
+Publication status: <…>
+Activation status: NOT ACTIVATED
+```
+
+**Live create (2026-08-12):** Premarin opted-in D2C segment was created in dataspace `DTC`:
+
+| | |
+| --- | --- |
+| Display / API | `DEMO_D2C_Premarin_Opted_In` / `DTC_DEMO_D2C_Premarin_Opted_In` |
+| SegmentOn | `DTC_Individual__dlm` |
+| Status | `ACTIVE` |
+| **Data 360 member count** | **26,531** (matches Recipe A count) |
+| Snowflake | ACTIVE streams — run validation SQL on `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES` (+ consent); agent marks PENDING if connector not reachable |
+
 ### Empty today — skip for live demos
 
 These are schema-mapped but return **0** until streams load (ask still works; agent returns SQL + caveat):

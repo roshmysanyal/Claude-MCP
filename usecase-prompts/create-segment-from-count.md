@@ -11,6 +11,7 @@
 | Dataspace | Count works? | Segment create works? | Why |
 | --- | --- | --- | --- |
 | **Development** — CRM email Open/Click/Send | Yes | **Yes** | UnifiedIndividual + IdentityLink + EmailEngagement populated |
+| **DTC** — brand + consent (+ email) | Yes | **Yes** | Individual / UnifiedIndividual / BrandProfile / Consent populated; streams ACTIVE for dual-report |
 | **Stage** — HQ email / IQVIA (**D360 and Snowflake count**) | Yes | **Draft only** | Counts use engagement/IQVIA DMOs; SegmentOn `stg_UnifiedIndividual__dlm` / Individual is **empty (0)** — published segment has **0 members** until profile streams load |
 | **Prod** — CRM email | Yes | Likely yes (same pattern as Dev) | Confirm UnifiedIndividual + EmailEngagement join before publish |
 
