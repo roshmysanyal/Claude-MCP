@@ -1760,7 +1760,8 @@ ${seg.membershipSql}
 
 Show the SQL before create. Then create with publishSchedule NoRefresh and confirm.
 After create, pull the segment member count and compare to the Recipe A count for the same filters.
-Also dual-report **Data 360 count** vs **Snowflake source count** (or provide the Snowflake validation SQL if the stream is not ACTIVE / not connected).
+Also dual-report **Data 360 count** vs **Snowflake source count** (tally the Snowflake query; if it does not return a count, share the SQL and the Snowflake query output).
+Always return the **Data 360 segment link** (Lightning MarketSegment/<id>/view) for the created or compared segment.
 ${seg.creatable ? "" : "NOTE: Stage profile DMOs are empty today — expect 0 members until Individual/UnifiedIndividual streams load; still create only if the team wants a draft definition."}`.trim();
 }
 

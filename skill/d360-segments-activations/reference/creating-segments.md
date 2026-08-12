@@ -1,9 +1,36 @@
 # Creating Segments — reference (distinct from querying / counting)
 
-**Segment creation is not the same operation as a count.** They share the semantic layer
-([dataModel.yaml](dataModel.yaml)) for DMOs/fields/joins, but the SQL they emit is fundamentally
-different in *shape*, *rules*, and *result*. This file is the authoritative reference for the
-**create/build-segment** path (Skill Recipe B). For counts, see the query path (Skill Recipe A).
+**Segment creation is not the same operation as a count.** They share the semantic layer for
+DMOs/fields/joins, but the SQL they emit is fundamentally different in *shape*, *rules*, and
+*result*. This file is the authoritative reference for the **create/build-segment** path (Skill
+Recipe B). For counts, see the query path (Skill Recipe A).
+
+---
+
+## Dataspace (required — follows the routed model)
+
+Route by audience first, then take the dataspace from that model's `defaults.dataspace` and each
+entity's `dataspace` (see [using-the-data-model.md](using-the-data-model.md)):
+
+| Segment is about | Model | Dataspace | SegmentOn |
+|---|---|---|---|
+| **HCPs** (default) | [dataModel-dev.yaml](dataModel-dev.yaml) | `Development` (DEV-US) | `dev_UnifiedIndividualRs1__dlm` |
+| **Patients** (default) | [dataModel-dtc.yaml](dataModel-dtc.yaml) | `DTC` | `DTC_UnifiedIndividualDtc__dlm` |
+| HCP production | [dataModel-prd-us.yaml](dataModel-prd-us.yaml) | `PRD_US` | `prd_UnifiedIndividualPrd1__dlm` |
+| HCP staging | [dataModel-stg-us.yaml](dataModel-stg-us.yaml) | `STG_US` | `stg_UnifiedIndividual__dlm` |
+| Patient development | [dataModel-dev-pat.yaml](dataModel-dev-pat.yaml) | `DEV_PAT` | `dpt_UnifiedIndividualPatd__dlm` |
+| LAB | [dataModel-lab.yaml](dataModel-lab.yaml) | `LAB` | `LAB_Individual__dlm` (no IR) |
+| Patient production | [dataModel-prd-pat.yaml](dataModel-prd-pat.yaml) | `PRD_PAT` | **none — empty** |
+| default | [dataModel-default.yaml](dataModel-default.yaml) | `default` | **not segmentable** |
+
+Full catalog: [dataModel-index.yaml](dataModel-index.yaml).
+
+- Confirm the routed model **and** dataspace with the user before create/publish.
+- Put the dataspace on the segment API payload / MCP `execute` params — do not leave it unspecified
+  (unspecified often resolves to `default`, which is the wrong model for this POC).
+- Never build one segment across both dataspaces, and never reuse the other model's field names.
+- **Counts in `STG_US` / `PRD_US`:** return the number only — never PII sample rows (same as
+  Development). Segment membership projects opaque SegmentOn PKs only. See Skill *PII-safe counts*.
 
 ---
 
@@ -101,7 +128,7 @@ WHERE ui."Id__c" IN (
 **Why this passes validation:** top-level select projects only the SegmentOn PK (`ui."Id__c"`);
 no aggregation, no `SELECT *`, no `CASE`, no aliases; every column is fully qualified; each subquery
 is in a `WHERE` and emits exactly one column; every containment uses a **declared join key** from
-[dataModel.yaml](dataModel.yaml) (`Id__c` ↔ `UnifiedRecordId__c` / `SourceRecordId__c` /
+[dataModel-dev.yaml](dataModel-dev.yaml) (`Id__c` ↔ `UnifiedRecordId__c` / `SourceRecordId__c` /
 `PartyId__c` / `IndividualId__c`), routed through the identity link.
 
 **Contrast with the count** (Recipe A) for the same population:
@@ -128,11 +155,13 @@ contained). Build each to its own rules; don't reuse one for the other.
 
 ## Before you submit a segment — checklist
 
+- [ ] Audience routed to the right model, and the dataspace matches it — **`Development` (DEV-US)**
+      for HCP, **`DTC`** for patient — confirmed with the user / payload (not `default`).
 - [ ] `SegmentOn` chosen and it's a **profile table**; top-level select projects **only its PK**.
 - [ ] No aggregation, no `SELECT *`, no `CASE`, no aliases.
 - [ ] Every column fully qualified; every subquery in `WHERE` and single-column.
 - [ ] Every join/containment uses a **declared relationship + join key** from
-      [dataModel.yaml](dataModel.yaml) (unified ↔ source routed via the identity-link DMO).
+      [dataModel-dev.yaml](dataModel-dev.yaml) (unified ↔ source routed via the identity-link DMO).
 - [ ] Key qualifiers projected + grouped if the PK has them.
 - [ ] Filters translated **from the plain-English description** (Recipe B), not copied from the
       reference segment's raw JSON.
@@ -142,13 +171,40 @@ contained). Build each to its own rules; don't reuse one for the other.
 
 ## Read segment count and lifecycle status
 
-1. `d360_segment_list` in the routed dataspace to resolve API name when needed.
-2. `d360_segment_get` for definition, SegmentOn, ID, publication state, and schedule.
-3. `d360_segment_count` with `preferApproxCount: false`; follow its async job/status and report
-   **PENDING** until complete.
-4. `d360_activation_list`, matched by exact segment/market-segment ID, then
-   `d360_activation_get` for each match.
+After create — and whenever the user asks about an existing segment — use the governed read flow:
 
-Report **created/draft**, **published**, and **activated** separately. An ACTIVE activation target
-does not mean that the segment is activated. Never call `d360_segment_member_list` merely to prove
-the count; return count and aggregate lifecycle metadata only.
+1. `d360_segment_list` (with the correct `dataspace`) to resolve API name when needed.
+2. `d360_segment_get` by `segmentApiName` for definition, SegmentOn, ID, schedule, and
+   publication/lifecycle state.
+3. `d360_segment_count` with `preferApproxCount: false` for the evaluated member count. It can be
+   asynchronous; follow the returned job/status mechanism and report **PENDING** until complete.
+4. `d360_activation_list`, matched by market-segment/segment ID, then `d360_activation_get` for each
+   match to determine whether the segment is actually activated.
+
+Do not confuse these states:
+
+- **Created / draft:** definition exists.
+- **Published / active segment:** definition has been evaluated.
+- **Activated:** an activation binding exists for the segment and its returned activation status is
+  active/successful.
+
+An ACTIVE activation **target** alone does not mean a segment is activated. Never call
+`d360_segment_member_list` merely to prove the count; report counts and lifecycle metadata only.
+
+Required output:
+
+```text
+Segment: <display name> (<API name>)
+**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
+Segment member count: <N | PENDING>
+**Data 360 count:** <N>
+**Snowflake source count:** <M | PENDING | N/A>
+**Snowflake validation SQL:** <when M is not an integer>
+**Snowflake query output:** <when the Snowflake query did not return a count — never PII>
+Publication status: <returned status>
+Activation status: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
+```
+
+Always **tally Snowflake** for the segment's primary DMO/filters. Always include the **Data 360
+segment link** (Lightning `MarketSegment/<marketSegmentId>/view`) after create and on every
+segment count/status read.

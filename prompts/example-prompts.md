@@ -147,9 +147,12 @@ Paste these to the agent when you want it to **create a segment** and then repor
 
 ```text
 **Data 360 count:** <N>
-**Snowflake source count:** <M>
+**Snowflake source count:** <M | PENDING | N/A>
   Source: DATABASE.SCHEMA.TABLE
+**Snowflake validation SQL:** <when M is not returned>
+**Snowflake query output:** <error/empty/status when query did not return a count>
 
+**Data 360 segment link:** https://<org>/lightning/r/MarketSegment/<marketSegmentId>/view
 Segment: DEMO_D2C_… / DEMO_HCP_… (<API name>)
 Publication status: <…>
 Activation status: NOT ACTIVATED

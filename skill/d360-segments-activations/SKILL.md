@@ -14,8 +14,10 @@ description: >-
   user already named one. Every count — including the count behind a create/update
   and any status check — dual-reports Data 360 vs the Snowflake data-stream source
   table; if Snowflake is not connected or the stream is not ACTIVE, it still provides
-  the validation SQL and marks the Snowflake side PENDING/N/A. Count responses never
-  include PII. For "within N miles of
+  the validation SQL **and the Snowflake query output** (error/empty/non-count) and marks
+  the Snowflake side PENDING/N/A. After every count comparison or segment create, include the
+  Data 360 segment link (Lightning URL or openable MarketSegment path with ID). Count responses
+  never include PII. For "within N miles of
   ZIP/landmark" asks, precompute ZIP centroids into an IN list (see ZIP-radius
   section) — do not invent in-SQL Haversine.
 ---
@@ -63,11 +65,20 @@ entity model and operations below — no brand allowlist.
   produces a member count — a Recipe A count, the count behind a **create** or **update**, or a
   **segment status** read — must be validated against the **Snowflake data-stream source table**
   for that DMO (see [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md)).
-  Report **Data 360 count** and **Snowflake source count** together. **If Snowflake is not
-  connected, or the DMO's data stream is not ACTIVE / not Snowflake-fed, you must still provide the
-  exact Snowflake validation SQL** and mark **Snowflake source count: PENDING** (or **N/A —
-  connector not Snowflake**), naming `DATABASE.SCHEMA.TABLE`. Never skip the Snowflake side
-  silently.
+  **Tally the Snowflake query every time** (run it when access exists). Report **Data 360 count**
+  and **Snowflake source count** together.
+  - **If Snowflake returns an integer count** → show both numbers + source table/stream.
+  - **If the Snowflake query does not return a count** (error, timeout, empty result set, wrong
+    shape, access denied, stream not ACTIVE, connector not Snowflake, or no warehouse session) →
+    still show **Snowflake validation SQL** **and the Snowflake query output** (error text /
+    status / empty-result note — never PII rows) under **Snowflake query output**, then mark
+    **Snowflake source count: PENDING** or **N/A — connector not Snowflake**, naming
+    `DATABASE.SCHEMA.TABLE`. Never skip the Snowflake side silently.
+- **Always return the Data 360 segment link** when the ask is about an existing segment's count
+  **or** after you create/update a segment: include a clickable/openable **Data 360 segment link**
+  (Lightning `MarketSegment` record URL when the org base URL is known; otherwise the standard
+  path with `marketSegmentId` + API name so the user can open it). Never finish a create or
+  segment-count compare without that link.
 - **Entity:** Health Care Professional (HCP) profiles, or DTC patient/consumer profiles, plus their
   related engagement/consent objects in Data 360.
 - **Fields (illustrative — confirm exact API names with the Data Cloud Architect):**
@@ -115,15 +126,31 @@ must remain `COUNT(DISTINCT …)` only — never add PII columns.
   **Snowflake source count:** <M> (Source: DATABASE.SCHEMA.TABLE)
   ```
 
-  If Snowflake is **not connected**, or the DMO's data stream is **not ACTIVE / not Snowflake-fed**,
-  do not drop the Snowflake line — return the validation SQL and mark it PENDING/N/A:
+  If Snowflake is **not connected**, the stream is **not ACTIVE / not Snowflake-fed**, **or the
+  Snowflake query does not return a usable count**, do not drop the Snowflake side — return the
+  validation SQL **and the query output**, then mark PENDING/N/A:
 
   ```text
   **Data 360 count:** <N>
   **Snowflake source count:** PENDING (stream not ACTIVE) — or — N/A (connector not Snowflake)
+    — or — PENDING (query did not return a count)
   **Snowflake validation SQL:**
     SELECT COUNT(DISTINCT <ID>) FROM DATABASE.SCHEMA.TABLE WHERE <same filters>;
+  **Snowflake query output:**
+    <error message | empty result | status / row metadata — never PII rows>
   ```
+
+  When the ask involves a **segment** (inspect existing, or after create/update), also include:
+
+  ```text
+  **Data 360 segment link:** <Lightning MarketSegment URL>
+  Segment: <display name> (<segmentApiName>) · ID: <marketSegmentId>
+  ```
+
+  Build the link as:
+  `https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view`
+  when the org host is known (from MCP/org context or user). If the host is unknown, still give
+  **MarketSegment ID** + API name and the path template above so the user can open it in Data 360.
 
 - Dataspace name (`STG_US` / `PRD_US` / …), refresh timestamps, and validation deltas.
 - Non-PII **aggregate** diagnostics only when needed (fill-rates; `GROUP BY` on `pii:false`
@@ -331,23 +358,33 @@ user if ambiguous.
 3. `search` the **Query** family for a SQL/QueryV2 count operation.
 4. Build a `COUNT(DISTINCT <anchor count_key>)` query using the mapped joins and confirmed filters (DISTINCT on the anchor so 1:N fan-out never inflates the number). **SELECT only that count** — never project `pii:true` columns (or patient health attributes) into the result set. Same rule for HCP and patient/DTC.
 5. `execute` with the **user-chosen dataspace** and capture: **the D360 count** and the **Data 360 data-stream last-refresh timestamp** (query it if not returned).
-6. **Validate against the Snowflake data-stream source table** (required dual report). Follow
+6. **Validate against the Snowflake data-stream source table** (required dual report — **tally every
+   time**). Follow
    [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md):
    1. Map the primary DMO in the count to its Snowflake `database.schema.table` via
       [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md).
    2. Build an equivalent `COUNT(DISTINCT …)` on that source table with the **same filters**.
-   3. Run it if Snowflake access is available; otherwise provide the SQL and mark the Snowflake
-      count **PENDING**.
-   4. **Always present both numbers** in this shape (marketer-facing):
+   3. **Run / tally the Snowflake query** whenever access exists. Capture either the integer count
+      **or** the non-count outcome (error, empty, timeout, access denied).
+   4. **Always present both sides** in this shape (marketer-facing):
 
       ```text
       **Data 360 count:** <N> (dataspace <name>, DMO <api_name>)
-      **Snowflake source count:** <M>
+      **Snowflake source count:** <M | PENDING | N/A>
         Source: <DATABASE>.<SCHEMA>.<TABLE>
         Stream: <stream_name>
       ```
 
       If the stream is not Snowflake-fed, say **Snowflake source count: N/A** and name the connector.
+      **If the Snowflake query does not return a count**, still include:
+
+      ```text
+      **Snowflake validation SQL:** <exact SQL>
+      **Snowflake query output:** <error / empty / status — never PII>
+      ```
+
+   5. When this count is for (or compared to) a **segment**, also output the **Data 360 segment
+      link** (see *Data 360 segment link* under PII-safe counts / Recipe S).
 7. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty / unknown values**:
    - **If the count comes back 0 / empty**, don't stop at "0". **Profile the DMO** that filtered it out. The GA facade has **no dedicated data-profiler** — `d360_profile_query`/`d360_profile_metadata` are the *Profile query API* (they query/describe the unified profile DMOs), not a column-statistics tool. So profiling means **writing aggregation SQL through the Query SQL op** (`d360_query_sql`): per-column populated count + percent (the fill-rate expression below), cardinality (`COUNT(DISTINCT …)`), and — for non-PII, low-cardinality categorical fields — the value breakdown (`GROUP BY`). **You enforce PII-safety** — for `pii:true` fields query **fill-rate only, never the literals**. Use the result to tell the user *what values ARE present* and to distinguish "zero matches" from "the field isn't populated at all."
    - **When the user asks about a specific value, or you are unsure what values a field holds**, run a value-distribution query **before** (or instead of) guessing literals. Canonical shape (non-PII fields only):
@@ -445,15 +482,26 @@ whether it is activated. This is read-only; do not publish, activate, update, or
 
 ### Required status output
 
+After the segment member count, **tally Snowflake** for the segment's primary DMO/filters (Recipe A
+step 6). Then report:
+
 ```text
 Segment: <display name> (<segmentApiName>)
 Dataspace / SegmentOn: <dataspace> / <DMO>
+**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
+  (or path template + marketSegmentId if host unknown)
 Segment member count: <N | PENDING> (<exact|approx>, evaluated <timestamp>)
+**Data 360 count:** <N>   # same member count, dual-report label
+**Snowflake source count:** <M | PENDING | N/A>
+  Source: <DATABASE>.<SCHEMA>.<TABLE>
+**Snowflake validation SQL:** <exact SQL when M is not returned as an integer>
+**Snowflake query output:** <error/empty/status when the query did not return a count — never PII>
 Publication status: <DRAFT|PUBLISHED|ACTIVE|…> (last published <timestamp>)
 Activation status: <ACTIVATED|CONFIGURED, NOT ACTIVE|NOT ACTIVATED|UNKNOWN>
   Activation: <name/id/status> → Target: <target name>   # one line per binding
 ```
 
+Never omit the **Data 360 segment link** on a segment count/status read.
 ## Recipe B — Push (build a segment → activate)
 
 **Trigger:** the user wants to turn a population into a segment — most commonly **"now build that as
@@ -520,15 +568,20 @@ There are three entry points; they converge on the same build-and-status core.
    zero members. Creation is a write; wait for explicit confirmation.
 6. `search` → `payload_examples` → `execute` **`d360_segment_create`** with the routed
    `dataspace` / `input.dataSpace`, `segmentType: "Dbt"`, `segmentOnApiName`, and one DBT model whose
-   SQL is the membership query. Capture the returned segment ID and API name.
+   SQL is the membership query. Capture the returned **`marketSegmentId`**, API/developer name,
+   and dataspace — you will need them for the **Data 360 segment link**.
 7. **Do not publish automatically just because create succeeded.** Read the created definition
-   with `d360_segment_get`, show it to the user, and ask for publish confirmation. On confirmation,
+   with `d360_segment_get`, show it to the user (including the **Data 360 segment link**), and ask
+   for publish confirmation. On confirmation,
    `execute` **`d360_segment_publish`** using the returned segment ID.
-8. **Sanity-check membership against the count.** Follow Recipe S to pull the segment's member
-   count and publication status, then confirm it
+8. **Sanity-check membership against the count + Snowflake tally.** Follow Recipe S to pull the
+   segment's member count and publication status, then confirm it
    matches the Recipe A count for the same criteria — same population, so they should agree. If they
    diverge, **stop and reconcile** before activating (a mismatch usually means the segment SQL and the
-   count SQL don't express the same filters).
+   count SQL don't express the same filters). **Always tally Snowflake** for the same filters
+   (Recipe A step 6): if Snowflake does not return a count, share **Snowflake validation SQL** and
+   **Snowflake query output** next to the Data 360 numbers. Always include the
+   **Data 360 segment link** in this dual-report block.
    - **POC Staging empty-result rule:** when the routed dataspace is **`STG_US`** or **`Development`**
      and membership is **0 / empty** (or the underlying DMOs have no rows so the segment cannot be
      meaningfully validated), **always return the literal segment `sql`** you built/submitted —
@@ -544,9 +597,11 @@ There are three entry points; they converge on the same build-and-status core.
    activation target (do **not** create a new target), `execute` to trigger, and **confirm SFMC
    receipt**.
 12. **Read back lifecycle status.** Follow Recipe S after create/publish/activation and report the
-    evaluated member count, publication state, and activation state from the APIs.
+    evaluated member count, publication state, activation state, **Snowflake dual-report** (count or
+    SQL + query output), and the **Data 360 segment link**.
 13. **Report the success criteria:** for a rebuild — (1) count match, (2) segment equivalence, (3)
    SFMC receipt; for build-from-count — (1) segment membership matches the count, (2) SFMC receipt.
+   Always close with the dual-count block + segment link.
 
 ## Recipe U — Update an existing segment
 
@@ -559,15 +614,17 @@ brand, window, threshold), rename it, or change its schedule.
    plain English so the user confirms what they're changing from.
 3. **Re-map the new criteria** through the semantic layer (same rules as Recipe B). Rebuild the
    **membership SQL** (SegmentOn PK only — no `COUNT`, no PII).
-4. **Count the new population first (Recipe A) and dual-validate against Snowflake** — report Data
-   360 + Snowflake source counts (or the Snowflake SQL + PENDING/N/A if not connected / stream not
-   ACTIVE). This shows the impact of the change before writing.
-5. **Confirm before writing.** Show old vs new definition, dataspace, and the new expected count.
+4. **Count the new population first (Recipe A) and dual-validate against Snowflake** — **tally** the
+   Snowflake query; report Data 360 + Snowflake source counts. If Snowflake does not return a
+   count, share the SQL **and** the Snowflake query output, then mark PENDING/N/A. This shows the
+   impact of the change before writing.
+5. **Confirm before writing.** Show old vs new definition, dataspace, the new expected count, and
+   the existing **Data 360 segment link**.
 6. `search` → `payload_examples` → `execute` **`d360_segment_update`** in the routed dataspace.
    Do not re-publish or re-activate automatically — publish only on confirmation
    (`d360_segment_publish`), and re-activate only on separate confirmation.
-7. **Read back** with Recipe S (member count, publication status, activation status) and report the
-   three states separately.
+7. **Read back** with Recipe S (member count, Snowflake dual-report, publication status, activation
+   status, **Data 360 segment link**) and report the three states separately.
 
 ### Segment-definition SQL is its own thing — see the reference
 
@@ -664,11 +721,17 @@ answer into business language; keep the technical form for execution and for any
 - **Dual-report D360 + Snowflake source — for count, create, update, and status.** For any operation
   that yields a member count, look up the stream source in
   [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md) and
-  report **Data 360 count** and **Snowflake source count** per
+  **tally the Snowflake query**. Report **Data 360 count** and **Snowflake source count** per
   [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md).
-  **If Snowflake is not connected or the data stream is not ACTIVE (or not Snowflake-fed), still
-  provide the exact Snowflake validation SQL** and mark the Snowflake side **PENDING** / **N/A —
-  connector not Snowflake**. Do not ship a D360-only answer when a Snowflake table feeds the stream.
+  **If Snowflake is not connected, the data stream is not ACTIVE (or not Snowflake-fed), or the
+  Snowflake query does not return a count, still provide the exact Snowflake validation SQL and the
+  Snowflake query output** (error/empty/status — never PII), and mark the Snowflake side **PENDING** /
+  **N/A — connector not Snowflake**. Do not ship a D360-only answer when a Snowflake table feeds the
+  stream.
+- **Always include the Data 360 segment link** after creating/updating a segment, and whenever
+  comparing or reading a segment count: Lightning
+  `/lightning/r/MarketSegment/<marketSegmentId>/view` (with org host when known) plus display/API
+  name. Never leave the user without a place to open the segment in Data 360.
 - **Create, publish, and activate are separate writes.** A request to create authorizes create only,
   not publish or activation. Show the definition and dataspace before create; read it back after
   create; obtain separate confirmation before publish and again before activation.

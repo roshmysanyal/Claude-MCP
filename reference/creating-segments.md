@@ -195,7 +195,16 @@ Required output:
 
 ```text
 Segment: <display name> (<API name>)
+**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
 Segment member count: <N | PENDING>
+**Data 360 count:** <N>
+**Snowflake source count:** <M | PENDING | N/A>
+**Snowflake validation SQL:** <when M is not an integer>
+**Snowflake query output:** <when the Snowflake query did not return a count — never PII>
 Publication status: <returned status>
 Activation status: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
 ```
+
+Always **tally Snowflake** for the segment's primary DMO/filters. Always include the **Data 360
+segment link** (Lightning `MarketSegment/<marketSegmentId>/view`) after create and on every
+segment count/status read.
