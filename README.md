@@ -69,14 +69,14 @@ Pre-development checklist. Fill in owners/values before kickoff.
 
 Goal: prove Claude can return a Data 360 count from plain English, and that it matches OCL/Snowflake.
 
-1. Open Claude (Bedrock) with the Skill enabled and the `data360` MCP server connected.
-2. Run the Pull prompt from [prompts/example-prompts.md](prompts/example-prompts.md):
-   > *"How many opted-in `<brand>` HCPs in New York visited the customer website in the last 60 days?"*
-3. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns **the count only**.
-4. **Capture the D360 data-stream last-refresh timestamp** (the Skill will report it; if not, pull from the org).
-5. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](validation/run-benchmark.md) using [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
-6. **Compare** → [validation/compare-counts.md](validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
-7. Iterate the query logic until counts match (or document why they can't).
+1. Open Claude / Cursor with the Skill enabled and the `data360` MCP server connected.
+2. **Authenticate the Snowflake MCP once** so the agent can fill the Snowflake count instead of PENDING.
+3. Start from a **suggestion prompt** in [prompts/chat-starters.md](prompts/chat-starters.md) (or the copy-paste block in [prompts/example-prompts.md](prompts/example-prompts.md)) — each names **dataspace + populated DMO** so the agent does not re-ask routing.
+4. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns the **dual-report table** (Data 360 + Snowflake source).
+5. **Capture the D360 data-stream last-refresh timestamp** (the Skill will report it; if not, pull from the org).
+6. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](validation/run-benchmark.md) using [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
+7. **Compare** → [validation/compare-counts.md](validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
+8. Iterate the query logic until counts match (or document why they can't).
 
 **Exit gate:** Pull count within threshold of OCL/Snowflake, with matched refresh windows, documented.
 
@@ -133,16 +133,16 @@ customer-d360-poc/
 ├── setup/                       ← 00 provision Salesforce · 01 install · 02 auth · 03 connect Claude
 ├── skill/d360-segments-activations/  ← the governed Claude Skill (SKILL.md)
 ├── reference/                   ← semantic layer: DMO/field/join model (dataModel-dev.yaml) + how-to-use / verify docs
-├── prompts/                     ← example marketer prompts (POC Phase 1/2)
+├── prompts/                     ← example marketer prompts + chat-starters.md (POC Phase 1/2)
 ├── usecase-prompts/             ← dataspace-validated natural-language count use cases
 │                                  (+ demo-segments-d360-snowflake.md for dual-validation demos)
-├── demo-ui/                     ← browser demo: use case → dual-report count outcome
+├── demo-ui/                     ← CoCo: browser demo of pullable use cases by dataspace
 ├── validation/                  ← OCL/Snowflake benchmark + compare procedure (+ stream-source dual report)
 ├── feedback/                    ← self-improvement: session friction log → owner-reviewed skill changes (no per-machine forks)
 └── readout/                     ← Phase 3 one-pager template
 ```
 
-**Demo UI:** open [demo-ui/index.html](demo-ui/index.html) (or `npx serve demo-ui`) — Stage presets show Data 360 ballpark + Snowflake source mapping. Live MCP counts still run via the Skill in Cursor.
+**CoCo (demo UI):** serve [demo-ui/](demo-ui/) (`py -m http.server 3000` or `npx serve demo-ui`) and open <http://localhost:3000/> — dataspace filter plus FAQs of pullable use cases (live Data 360 count > 0) with copyable prompts. Live MCP counts still run via the Skill in Cursor. **Chat starters:** [prompts/chat-starters.md](prompts/chat-starters.md). **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
 
 ### Open items to fill before running against production
 - Exact OCL/Snowflake view / Snowflake query name → **Salesforce Data Cloud Architect**

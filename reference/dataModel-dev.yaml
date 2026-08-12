@@ -71,8 +71,10 @@ version: 1
 
 defaults:
   dialect: postgresql          # Data 360 Query API v2 dialect
-  dataspace: Development       # DEV-US; prefix `dev` — default for all entities below
-  dataspace_label: DEV-US
+  dataspace: Development       # MCP API name; org label DEV-US
+  dataspace_label: DEV-US      # US Customer Data = HCP
+  org_description: Development environment for US Customer Data
+  audience: HCP
   anchor: UnifiedIndividual    # default "people" entity for counts
   # Counting rule: a person = one distinct anchor count_key, regardless of how
   # many child rows (Rx, engagements, accounts) they fan out to.

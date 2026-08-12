@@ -13,24 +13,26 @@ Without it, the agent would guess field and join names — and in the Data 360 S
 
 Full catalog: [dataModel-index.yaml](dataModel-index.yaml).
 
-| Default audience | Load | Dataspace |
-|---|---|---|
-| **HCPs** | [dataModel-dev.yaml](dataModel-dev.yaml) | `Development` / DEV-US |
-| **Patients** | [dataModel-dtc.yaml](dataModel-dtc.yaml) | `DTC` |
+**Audience rule:** US Customer Data (`DEV-US` / `STG-US` / `PRD-US`) = **HCP**. Patient spaces
+(`DTC` / `PRD-PAT`) = **patient / D2C**. Never cross those.
 
-| Explicit dataspace | File |
-|---|---|
-| `Development` | [dataModel-dev.yaml](dataModel-dev.yaml) |
-| `DTC` | [dataModel-dtc.yaml](dataModel-dtc.yaml) |
-| `PRD_US` | [dataModel-prd-us.yaml](dataModel-prd-us.yaml) |
-| `STG_US` | [dataModel-stg-us.yaml](dataModel-stg-us.yaml) |
-| `DEV_PAT` | [dataModel-dev-pat.yaml](dataModel-dev-pat.yaml) |
-| `PRD_PAT` | [dataModel-prd-pat.yaml](dataModel-prd-pat.yaml) (empty — stop) |
-| `LAB` | [dataModel-lab.yaml](dataModel-lab.yaml) |
-| `default` | [dataModel-default.yaml](dataModel-default.yaml) (inventory only) |
+| Default audience | Load | Org label | MCP dataspace |
+|---|---|---|---|
+| **HCPs** (US customers) | [dataModel-dev.yaml](dataModel-dev.yaml) | DEV-US | `Development` |
+| **Patients** | [dataModel-dtc.yaml](dataModel-dtc.yaml) | DTC | `DTC` |
+
+| Explicit dataspace | Org label | Audience | File |
+|---|---|---|---|
+| `Development` | DEV-US | HCP (US Customer Data) | [dataModel-dev.yaml](dataModel-dev.yaml) |
+| `STG_US` | STG-US | HCP (US Customer Data) | [dataModel-stg-us.yaml](dataModel-stg-us.yaml) |
+| `PRD_US` | PRD-US | HCP (US Customer Data) | [dataModel-prd-us.yaml](dataModel-prd-us.yaml) |
+| `DTC` | DTC | Patient / D2C | [dataModel-dtc.yaml](dataModel-dtc.yaml) |
+| `PRD_PAT` | PRD-PAT | Patient (empty — stop; offer DTC) | [dataModel-prd-pat.yaml](dataModel-prd-pat.yaml) |
+| `LAB` | LAB | Lab | [dataModel-lab.yaml](dataModel-lab.yaml) |
+| `default` | default | inventory only | [dataModel-default.yaml](dataModel-default.yaml) |
 
 - **Decide the audience (or honor an explicit dataspace) before mapping**, and state the routing.
-- **Ambiguous audience → ask.** Don't guess.
+- **Ambiguous audience → ask** ("HCP / US customer or patient / DTC?"). Don't guess.
 - **Never mix models / dataspaces.** No cross joins; no borrowed field names or literals.
 - **`PRD_PAT` is empty** of profile DMOs; **`default`** Individual is not segmentable — stop rather
   than improvising.

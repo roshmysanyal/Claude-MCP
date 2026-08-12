@@ -9,28 +9,70 @@ Recipe B). For counts, see the query path (Skill Recipe A).
 
 ## Dataspace (required — follows the routed model)
 
+**Audience rule:** US Customer Data spaces (`DEV-US` / `STG-US` / `PRD-US`) = **HCP**. Patient
+spaces (`DTC` / `PRD-PAT`) = **patient / D2C**. Never cross those.
+
 Route by audience first, then take the dataspace from that model's `defaults.dataspace` and each
 entity's `dataspace` (see [using-the-data-model.md](using-the-data-model.md)):
 
-| Segment is about | Model | Dataspace | SegmentOn |
-|---|---|---|---|
-| **HCPs** (default) | [dataModel-dev.yaml](dataModel-dev.yaml) | `Development` (DEV-US) | `dev_UnifiedIndividualRs1__dlm` |
-| **Patients** (default) | [dataModel-dtc.yaml](dataModel-dtc.yaml) | `DTC` | `DTC_UnifiedIndividualDtc__dlm` |
-| HCP production | [dataModel-prd-us.yaml](dataModel-prd-us.yaml) | `PRD_US` | `prd_UnifiedIndividualPrd1__dlm` |
-| HCP staging | [dataModel-stg-us.yaml](dataModel-stg-us.yaml) | `STG_US` | `stg_UnifiedIndividual__dlm` |
-| Patient development | [dataModel-dev-pat.yaml](dataModel-dev-pat.yaml) | `DEV_PAT` | `dpt_UnifiedIndividualPatd__dlm` |
-| LAB | [dataModel-lab.yaml](dataModel-lab.yaml) | `LAB` | `LAB_Individual__dlm` (no IR) |
-| Patient production | [dataModel-prd-pat.yaml](dataModel-prd-pat.yaml) | `PRD_PAT` | **none — empty** |
-| default | [dataModel-default.yaml](dataModel-default.yaml) | `default` | **not segmentable** |
+| Segment is about | Model | Org label | MCP dataspace | SegmentOn |
+|---|---|---|---|---|
+| **HCPs** (US Customer — default Dev) | [dataModel-dev.yaml](dataModel-dev.yaml) | DEV-US | `Development` | `dev_UnifiedIndividualRs1__dlm` |
+| **HCPs** staging | [dataModel-stg-us.yaml](dataModel-stg-us.yaml) | STG-US | `STG_US` | `stg_UnifiedIndividual__dlm` |
+| **HCPs** production | [dataModel-prd-us.yaml](dataModel-prd-us.yaml) | PRD-US | `PRD_US` | `prd_UnifiedIndividualPrd1__dlm` |
+| **Patients / D2C** (default) | [dataModel-dtc.yaml](dataModel-dtc.yaml) | DTC | `DTC` | `DTC_UnifiedIndividualDtc__dlm` (**required** — same as CIA Consumer Marketable Email) |
+| Patient production | [dataModel-prd-pat.yaml](dataModel-prd-pat.yaml) | PRD-PAT | `PRD_PAT` | **none — empty; use DTC** |
+| LAB | [dataModel-lab.yaml](dataModel-lab.yaml) | LAB | `LAB` | `LAB_Individual__dlm` (no IR) |
+| default | [dataModel-default.yaml](dataModel-default.yaml) | default | `default` | **not segmentable** |
 
 Full catalog: [dataModel-index.yaml](dataModel-index.yaml).
 
 - Confirm the routed model **and** dataspace with the user before create/publish.
 - Put the dataspace on the segment API payload / MCP `execute` params — do not leave it unspecified
   (unspecified often resolves to `default`, which is the wrong model for this POC).
-- Never build one segment across both dataspaces, and never reuse the other model's field names.
+- Never build one segment across both audiences/dataspaces, and never reuse the other model's field names.
+- **Patient / D2C / DTC:** always nest **CIA Consumer Marketable Email** first (Segment Membership
+  Latest DMO), then add other DMOs — see *CIA Consumer Marketable Email base* below. Do not
+  SegmentOn `DTC_Individual__dlm` for activatable D2C audiences.
 - **Counts in `STG_US` / `PRD_US`:** return the number only — never PII sample rows (same as
   Development). Segment membership projects opaque SegmentOn PKs only. See Skill *PII-safe counts*.
+
+---
+
+## CIA Consumer Marketable Email base (patient / D2C — required)
+
+Every consumer/patient/D2C/DTC segment must start from this population, then add use-case DMOs.
+
+| | Value |
+|---|---|
+| Display name | CIA Consumer Marketable Email |
+| API name | `DTC_CIA_Consumer_Marketable_Email` |
+| SegmentOn | `DTC_UnifiedIndividualDtc__dlm` |
+| `marketSegmentId` | `1sgWC00000009cnYAA` (reconfirm with `d360_segment_get`) |
+| Membership Latest DMO | `DTC_UnifiedIndividualDtc_SM_1780343389__dlm` |
+| Membership keys | `Id__c` → Unified Individual PK; `Segment_Id__c` → segment id (15-char form observed in org) |
+
+**Order of filters in membership SQL:**
+
+1. CIA membership nest (`Segment_Id__c LIKE '1sgWC00000009cn%'`)
+2. Then Brand Profile / Consent / Preference / Email / other DMOs via identity-link paths
+
+```sql
+SELECT DTC_UnifiedIndividualDtc__dlm.Id__c
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Id__c
+    FROM DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    WHERE DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Segment_Id__c LIKE '1sgWC00000009cn%'
+)
+  AND DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    /* additional use-case DMO subquery(s) */
+  );
+```
+
+If the CIA nest returns 0 members while CIA's published `lastSegmentMemberCount` is non-zero, stop
+and tell the user — do not drop the CIA layer silently. Only use a temporary marketable
+email+consent fallback if the user explicitly approves it.
 
 ---
 
@@ -153,15 +195,105 @@ contained). Build each to its own rules; don't reuse one for the other.
 
 ---
 
+## Worked example — DTC use case → multi-DMO containers
+
+**Reference segment (UI, learn from this):**
+[UAT -DTC Test Scenario-RX Program](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008iLYAQ)
+
+| | |
+|---|---|
+| Display / API | `UAT -DTC Test Scenario-RX Program` / `DTC_UAT_DTC_Test_Scenario_2` |
+| `marketSegmentId` | `1sgWC00000008iLYAQ` |
+| Dataspace / type | `DTC` / `UI` |
+| SegmentOn | `DTC_UnifiedIndividualDtc__dlm` |
+| Members | ~2,504 |
+| Lookback | `P2Y` |
+
+**Use case (description):** Target Prospects, Caregivers, or Patients on medication or a
+prescription program, enrolled in the last 3 years, and opted in to communications.
+
+**How the org actually built it** (`includeCriteria` — trust this over the description when they
+disagree):
+
+```text
+SegmentOn: Unified Individual DTC
+AND
+  [Container 1] ConsentPreference  count ≥ 1
+      PreferenceName__c = 'ALL'
+      AND PreferenceType__c IN ('Brand', 'Topic')
+      AND PreferenceValue__c = 'IN'
+      path: Unified → IdentityLink → Individual → ContactPointConsent → ConsentPreference
+AND
+  [Container 2] BrandProfile  count ≥ 1
+      CustomerType__c IN ('Caregiver', 'Prospect', 'Patient')
+      OR OnPrescriptionDrugProgram__c = true
+      OR OnMedication__c = true
+      OR AcquisitionDate__c in the last 24 months   ← description said "3 years"; filter is 24 mo
+      path: Unified → IdentityLink → Individual → BrandProfile
+```
+
+**Pattern to reuse for any use case:**
+
+1. Pick **SegmentOn** (DTC → Unified Individual).
+2. Split the ask into **DMO containers** (one related object per existence check).
+3. **AND** containers together; use **AND/OR inside** each container to match the ask.
+4. For **new** D2C builds under this Skill: insert **CIA Consumer Marketable Email** membership as
+   container 0, then the use-case containers (this UAT reference predates that Skill rule).
+5. Emit **DBT membership SQL** as nested `IN` subqueries (UI `count ≥ 1` ≡ existence subquery).
+
+**DBT-shaped membership (Skill create path — CIA first + UAT containers):**
+
+```sql
+SELECT DTC_UnifiedIndividualDtc__dlm.Id__c
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Id__c
+    FROM DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    WHERE DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Segment_Id__c LIKE '1sgWC00000009cn%'
+)
+  AND DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+    FROM DTC_UnifiedLinkIndividualDtc__dlm
+    WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+      SELECT DTC_ContactPointConsent__dlm.PartyId__c
+      FROM DTC_ContactPointConsent__dlm
+      WHERE DTC_ContactPointConsent__dlm.Id__c IN (
+        SELECT DTC_ConsentPreference__dlm.ContactPointConsentId__c
+        FROM DTC_ConsentPreference__dlm
+        WHERE DTC_ConsentPreference__dlm.PreferenceName__c = 'ALL'
+          AND DTC_ConsentPreference__dlm.PreferenceType__c IN ('Brand', 'Topic')
+          AND DTC_ConsentPreference__dlm.PreferenceValue__c = 'IN'
+      )
+    )
+  )
+  AND DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+    FROM DTC_UnifiedLinkIndividualDtc__dlm
+    WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+      SELECT DTC_BrandProfile__dlm.IndividualId__c
+      FROM DTC_BrandProfile__dlm
+      WHERE DTC_BrandProfile__dlm.CustomerType__c IN ('Caregiver', 'Prospect', 'Patient')
+         OR DTC_BrandProfile__dlm.OnPrescriptionDrugProgram__c = true
+         OR DTC_BrandProfile__dlm.OnMedication__c = true
+         OR DTC_BrandProfile__dlm.AcquisitionDate__c >= CURRENT_DATE - INTERVAL '24 months'
+    )
+  );
+```
+
+---
+
 ## Before you submit a segment — checklist
 
 - [ ] Audience routed to the right model, and the dataspace matches it — **`Development` (DEV-US)**
       for HCP, **`DTC`** for patient — confirmed with the user / payload (not `default`).
+- [ ] **Patient/D2C only:** **CIA Consumer Marketable Email** membership DMO is the **first** filter;
+      SegmentOn is `DTC_UnifiedIndividualDtc__dlm`; then other DMOs are added.
 - [ ] `SegmentOn` chosen and it's a **profile table**; top-level select projects **only its PK**.
 - [ ] No aggregation, no `SELECT *`, no `CASE`, no aliases.
 - [ ] Every column fully qualified; every subquery in `WHERE` and single-column.
 - [ ] Every join/containment uses a **declared relationship + join key** from
-      [dataModel-dev.yaml](dataModel-dev.yaml) (unified ↔ source routed via the identity-link DMO).
+      [dataModel-dev.yaml](dataModel-dev.yaml) / [dataModel-dtc.yaml](dataModel-dtc.yaml)
+      (unified ↔ source routed via the identity-link DMO).
 - [ ] Key qualifiers projected + grouped if the PK has them.
 - [ ] Filters translated **from the plain-English description** (Recipe B), not copied from the
       reference segment's raw JSON.

@@ -1,6 +1,6 @@
 {
-  "refreshedAt": "2026-08-10T16:30:00Z",
-  "source": "Live Data 360 MCP (d360_query_sql) — COUNT(DISTINCT …), no PII",
+  "refreshedAt": "2026-08-12T05:00:00Z",
+  "source": "Live Data 360 MCP (d360_query_sql) — COUNT(DISTINCT …), no PII — pullable > 0 only",
   "counts": {
     "dev-individual": { "d360": 1517180, "status": "live" },
     "dev-unified": { "d360": 1097325, "status": "live" },
@@ -10,14 +10,6 @@
     "dev-email-click-90d": { "d360": 56412, "status": "live" },
     "dev-email-send": { "d360": 530607, "status": "live" },
     "dev-header-unsub": { "d360": 35, "status": "live" },
-    "dev-website-visit-ny-60d": { "d360": 0, "status": "empty" },
-    "dev-optin-email-ny": { "d360": 0, "status": "empty" },
-    "dev-nbrx-utah": { "d360": 0, "status": "empty" },
-    "dev-corp-site-ny-3m": { "d360": 0, "status": "empty" },
-    "dev-corp-site-and-email-90d": { "d360": 0, "status": "empty" },
-    "dev-oncology-email-and-web": { "d360": 0, "status": "empty" },
-    "dev-zip-radius-07073": { "d360": 0, "status": "unsupported" },
-
     "stg-hq-opened-90d": { "d360": 376660, "status": "live" },
     "stg-hq-clicked-90d": { "d360": 46472, "status": "live" },
     "stg-hq-sent": { "d360": 1663037, "status": "live" },
@@ -28,15 +20,11 @@
     "stg-hq-abrysvo-opened-90d": { "d360": 92016, "status": "live" },
     "stg-iqvia-eliquis-nrx": { "d360": 606740, "status": "live" },
     "stg-iqvia-eliquis-nrx-gt10": { "d360": 2142, "status": "live" },
-
     "prd-individual": { "d360": 1517180, "status": "live" },
     "prd-cpe": { "d360": 999918, "status": "live" },
     "prd-email-open-90d": { "d360": 422129, "status": "live" },
     "prd-email-click-90d": { "d360": 138623, "status": "live" },
     "prd-email-send": { "d360": 867353, "status": "live" },
-    "prd-website-visit-ny-60d": { "d360": 0, "status": "empty" },
-    "prd-nbrx-brand": { "d360": 0, "status": "empty" },
-
     "dtc-brand-premarin": { "d360": 37463, "status": "live" },
     "dtc-brand-comirnaty": { "d360": 23751, "status": "live" },
     "dtc-brand-litfulo": { "d360": 8425, "status": "live" },
@@ -48,7 +36,6 @@
     "dtc-individual": { "d360": 193061, "status": "live" },
     "dtc-unified": { "d360": 191534, "status": "live" },
     "dtc-cpe": { "d360": 176989, "status": "live" },
-
     "dtc-premarin-optin": { "d360": 26531, "status": "live" },
     "dtc-comirnaty-optin": { "d360": 22722, "status": "live" },
     "dtc-litfulo-optin": { "d360": 8334, "status": "live" },

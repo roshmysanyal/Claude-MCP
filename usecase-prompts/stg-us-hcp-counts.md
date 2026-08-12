@@ -40,11 +40,19 @@ profile data loads — that path yields 0.
 
 ## Demo-ready prompts (copy/paste)
 
-Prefix with *In Stage,* (or answer **Stage** when asked for dataspace).
+> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.  
+> Prefer prompts that name **STG-US + populated DMO** so the agent skips clarifying steps.  
+> Full bank: [../prompts/example-prompts.md](../prompts/example-prompts.md) · starters: [../prompts/chat-starters.md](../prompts/chat-starters.md).
 
-### Headquarter email engagement
+### Headquarter email engagement (populated DMO: `stg_Headquarter_Email_Engagement__dlm`)
 
-| # | Prompt | Maps to | Ballpark (2026-08-07) |
+**Low-friction dual-report (recommended):**
+
+```text
+In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Return the dual-report table: Data 360 count + Snowflake source count for stream STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. If Snowflake cannot be tallied, still show the Snowflake validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+```
+
+| # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |
 | --- | --- | --- | ---: |
 | 1 | In Stage, how many HCPs opened a headquarter email in the last 90 days? | `EngagementChannelAction__c = 'OPENED'` + last 90 days | ~376,055 |
 | 2 | In Stage, how many HCPs clicked a headquarter email in the last 90 days? | `EngagementChannelAction__c = 'CLICKED'` + last 90 days | ~44,850 |
@@ -59,9 +67,13 @@ Prefix with *In Stage,* (or answer **Stage** when asked for dataspace).
 **Top brands by distinct people (HQ email, all-time sample):** `UNBRANDED`, `COMIRNATY`,
 `PAXLOVID`, `PREVNAR 20`, `ABRYSVO`, `ETRASIMOD`, `NURTEC`, `ELIQUIS`, …
 
-### IQVIA competitive prescribing
+### IQVIA competitive prescribing (populated DMO: `stg_IQVIACompetitorSalesFact__dlm`)
 
-| # | Prompt | Maps to | Ballpark (2026-08-07) |
+```text
+In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING (include SQL if PENDING). Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+```
+
+| # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |
 | --- | --- | --- | ---: |
 | 7 | In Stage, how many HCPs have Eliquis NRx volume greater than zero in IQVIA competitive prescribing? | `BrandName__c = 'ELIQUIS'` and `NRXVolume__c > 0` | ~606,740 |
 

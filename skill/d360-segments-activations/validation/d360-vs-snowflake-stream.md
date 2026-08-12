@@ -47,6 +47,10 @@ Optional when both ran successfully:
 **Delta:** <abs(N-M)> (<pct>%) — VALIDATED | NOT VALIDATED | PENDING (window / access)
 ```
 
+**Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of
+PENDING. Copy-paste prompts (dataspace + populated DMO): [../../prompts/example-prompts.md](../../prompts/example-prompts.md) ·
+chat starters: [../../prompts/chat-starters.md](../../prompts/chat-starters.md).
+
 Still **never** return PII. Both sides are counts only (`COUNT` / `COUNT(DISTINCT …)`), or
 non-count Snowflake diagnostics without person attributes.
 

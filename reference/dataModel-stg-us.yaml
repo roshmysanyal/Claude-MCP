@@ -3,12 +3,11 @@
 # File: dataModel-stg-us.yaml
 # =============================================================================
 # ROUTING
-#   This file is the HCP model for dataspace STG_US (STG-US, `stg_`).
-#   Sibling of Development (dataModel-dev.yaml). Route here when the user explicitly asks for STG_US / STG-US.
-#   POC default remains Development — do not use this file unless named.
-#   Catalog of all spaces: dataModel-index.yaml.
+#   This file is the HCP model for dataspace STG_US (org label STG-US —
+#   Staging environment for US Customer Data). US Customer Data = HCP.
+#   Sibling of Development (dataModel-dev.yaml). Route here when the user asks for
+#   STG-US / Stage. Catalog: dataModel-index.yaml.
 #   Ambiguous audience -> ask, don't guess. Never join across dataspaces.
-#   See the Skill's "Semantic layer routing" section.
 #
 # PII PASS (2026-08-07, mirrored from dataModel-dev.yaml)
 #   pii:true  = filter only; never return literals / never SELECT the column in
@@ -72,7 +71,8 @@ version: 1
 defaults:
   dialect: postgresql          # Data 360 Query API v2 dialect
   dataspace: STG_US
-  dataspace_label: STG-US
+  dataspace_label: STG-US      # US Customer Data = HCP
+  org_description: Staging environment for US Customer Data
   audience: HCP
   anchor: UnifiedIndividual    # default "people" entity for counts
   # Counting rule: a person = one distinct anchor count_key, regardless of how

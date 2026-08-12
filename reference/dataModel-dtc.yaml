@@ -3,13 +3,12 @@
 # =============================================================================
 # PURPOSE
 #   Sibling of dataModel-dev.yaml. Same contract, different audience:
-#     dataModel-dev.yaml -> HCP  (dataspace Development / DEV-US, prefix dev_)
-#     dataModel-dtc.yaml  -> PATIENT / consumer (dataspace DTC, prefix DTC_)
+#     dataModel-dev.yaml -> HCP  (US Customer Data: DEV-US / STG-US / PRD-US)
+#     dataModel-dtc.yaml  -> PATIENT / consumer (dataspace DTC)
 #
 #   Route to THIS file when the request is about patients, consumers, members,
-#   caregivers, or DTC brand audiences. Route to dataModel-dev.yaml when the request
-#   is about HCPs, prescribers, or physicians. See the Skill's "Semantic layer
-#   routing" section.
+#   caregivers, or DTC brand audiences. Route to a US-* HCP model when the request
+#   is about HCPs / US customers. See dataModel-index.yaml and the Skill.
 #
 # ORG SEED (MCP, 2026-08-07)
 #   Dataspace: DTC (prefix `DTC_`)
@@ -56,7 +55,9 @@ version: 1
 defaults:
   dialect: postgresql          # Data 360 Query API v2 dialect
   dataspace: DTC               # prefix `DTC_` — pass on every query/segment op
-  dataspace_label: DTC
+  dataspace_label: DTC         # Patient / consumer / D2C (not US Customer / HCP)
+  org_description: DTC
+  audience: PATIENT
   anchor: UnifiedIndividual    # default "people" entity for patient counts
   # Counting rule: a person = one distinct anchor count_key, regardless of how
   # many child rows (consents, engagements, brand profiles) they fan out to.
@@ -171,6 +172,62 @@ entities:
         status: verified
         pii: false
         desc: Party reference on the unified profile.
+
+  # ---- Segment membership (CIA / nested segments) ---------------------------
+  SegmentMembershipLatest:
+    dmo: DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Unified Individual DTC — Segment Membership Latest
+    status: verified
+    desc: >-
+      Latest membership for segments SegmentOn Unified Individual DTC. Required
+      first layer for D2C builds: nest CIA Consumer Marketable Email
+      (Segment_Id__c LIKE '1sgWC00000009cn%') before other DMOs.
+    grain: one row per (segment, member) in latest publish
+    primary_key: Id__c
+    count_key: Id__c
+    fields:
+      id:
+        api_name: Id__c
+        label: Member / unified individual ID
+        type: Text
+        status: verified
+        pii: false
+        desc: Equals UnifiedIndividual.Id__c for members of the segment.
+      segment_id:
+        api_name: Segment_Id__c
+        label: Segment ID
+        type: Text
+        status: verified
+        pii: false
+        desc: >-
+          Market segment id (15-char form observed). CIA Consumer Marketable
+          Email → LIKE '1sgWC00000009cn%' (full marketSegmentId 1sgWC00000009cnYAA).
+      kq_id:
+        api_name: KQ_Id__c
+        label: Key qualifier
+        type: Text
+        status: verified
+        pii: false
+      parent_segment_id:
+        api_name: Parent_Segment_Id__c
+        label: Parent segment ID
+        type: Text
+        status: verified
+        pii: false
+      snapshot_type:
+        api_name: Snapshot_Type__c
+        label: Snapshot type
+        type: Text
+        status: verified
+        pii: false
+      delta_type:
+        api_name: Delta_Type__c
+        label: Delta type
+        type: Text
+        status: verified
+        pii: false
 
   # ---- Identity Resolution link ---------------------------------------------
   IdentityLink:
@@ -660,6 +717,15 @@ entities:
         status: verified
         pii: true
         desc: Whether currently on therapy. SENSITIVE — filter only.
+      on_prescription_drug_program:
+        api_name: OnPrescriptionDrugProgram__c
+        label: On prescription drug program
+        type: Boolean
+        status: verified
+        pii: true
+        desc: >-
+          Whether on a prescription drug / RX support program. Used in
+          DTC_UAT_DTC_Test_Scenario_2 BrandProfile container. SENSITIVE — filter only.
       started_medication:
         api_name: StartedMedication__c
         label: Started medication
@@ -846,6 +912,18 @@ relationships:
     to_key: UnifiedRecordId__c
     cardinality: one_to_many
 
+  - name: unified_in_segment_membership
+    status: verified
+    kind: segment_membership
+    from: UnifiedIndividual
+    to: SegmentMembershipLatest
+    from_key: Id__c
+    to_key: Id__c
+    cardinality: one_to_many
+    note: >-
+      Filter SegmentMembershipLatest.Segment_Id__c for the nested segment
+      (CIA Consumer Marketable Email → LIKE '1sgWC00000009cn%').
+
   - name: identitylink_to_individual
     status: verified
     kind: identity_resolution
@@ -905,6 +983,19 @@ relationships:
 # -----------------------------------------------------------------------------
 paths:
 
+  unified_individual_to_cia_marketable_email:
+    from: UnifiedIndividual
+    to: SegmentMembershipLatest
+    hops: [unified_in_segment_membership]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+    required_for: patient_d2c_segment_builds
+    filters:
+      - "SegmentMembershipLatest.Segment_Id__c LIKE '1sgWC00000009cn%'"
+    note: >-
+      Mandatory first hop for every consumer/patient/D2C segment create/update.
+      Then chain brand/consent/email paths.
+
   unified_individual_to_source:
     from: UnifiedIndividual
     to: Individual
@@ -960,6 +1051,7 @@ journeys:
     intent: "How many patients are associated with <brand>?"
     anchor: UnifiedIndividual
     path: unified_individual_to_brand_profile
+    also_path_for_segments: unified_individual_to_cia_marketable_email
     filters:
       - "BrandProfile.brand = '<brand>'"
     count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
@@ -974,6 +1066,7 @@ journeys:
     #   WHERE bp."Brand__c" = '<brand>';
     caveats:
       - "Confirm the Brand__c literal set before filtering — values are VERIFY."
+      - "When BUILDING a segment for this journey, nest CIA Consumer Marketable Email first, then BrandProfile."
 
   patient_email_openers_last_90_days:
     intent: "How many patients opened an email in the last 90 days?"
@@ -1002,12 +1095,110 @@ journeys:
     anchor: UnifiedIndividual
     path: unified_individual_to_email
     also_join: unified_individual_to_consent
+    preferred_base: DTC_CIA_Consumer_Marketable_Email
     filters:
+      - "FIRST: nest CIA Consumer Marketable Email via SegmentMembershipLatest (Segment_Id__c LIKE '1sgWC00000009cn%')"
       - "ContactPointEmail.is_valid = true"
       - "ContactPointEmail.email_domain_restricted = false"
       - "ContactPointConsent.consent_status = '<opt-in-literal>'"
       - "UnifiedIndividual.retired = false"
     count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
     caveats:
+      - "For segment builds, ALWAYS nest CIA Consumer Marketable Email membership first, then other DMOs."
       - "Confirm the DTC consent-status literal — do not reuse the HCP 'IN'/'UNKNOWN' values."
       - "Add EighteenYearsOld__c / LivesInMassachusetts__c gates if the brand requires them."
+
+  uat_rx_program_prospects_opted_in:
+    intent: >-
+      Target Prospects/Caregivers/Patients on medication or RX program, enrolled
+      in last 24 months, opted in to Brand/Topic ALL preference (UAT RX Program).
+    reference_segment: DTC_UAT_DTC_Test_Scenario_2
+    anchor: UnifiedIndividual
+    path: unified_individual_to_cia_marketable_email
+    also_join:
+      - unified_individual_to_consent_preference
+      - unified_individual_to_brand_profile
+    filters:
+      - "CIA Consumer Marketable Email membership (Skill base)"
+      - "ConsentPreference: PreferenceName=ALL AND PreferenceType IN (Brand,Topic) AND PreferenceValue=IN"
+      - "BrandProfile: CustomerType IN (Caregiver,Prospect,Patient) OR OnPrescriptionDrugProgram OR OnMedication OR AcquisitionDate last 24 months"
+    count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
+    caveats:
+      - "Canonical multi-DMO container example — see creating-segments.md worked example."
+      - "Live UI segment omits CIA; Skill creates must still prepend CIA."
+      - "Description said 3 years; includeCriteria uses 24 months / lookback P2Y."
+
+# -----------------------------------------------------------------------------
+# REFERENCE SEGMENTS  — CIA / marketable base (DTC)
+# -----------------------------------------------------------------------------
+# Harvested 2026-08-12. Every patient/D2C segment create MUST nest this first.
+# -----------------------------------------------------------------------------
+reference_segments:
+
+  DTC_CIA_Consumer_Marketable_Email:
+    api_name: DTC_CIA_Consumer_Marketable_Email
+    display_name: CIA Consumer Marketable Email
+    dataspace: DTC
+    segment_on: DTC_UnifiedIndividualDtc__dlm
+    market_segment_id: 1sgWC00000009cnYAA
+    status: ACTIVE
+    last_member_count: 190926
+    segment_type: UI
+    intent: >-
+      Mandatory base for every consumer/patient/D2C/DTC segment. US targetable
+      consumers opted in for email marketing. Nest via Segment Membership Latest
+      DMO before Brand Profile, Consent Preference, or any other use-case DMO.
+    membership_latest_dmo: DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    membership_history_dmo: DTC_UnifiedIndividualDtc_SMH_178034340__dlm
+    membership_fields:
+      profile_pk: Id__c          # equals UnifiedIndividual.Id__c
+      segment_id: Segment_Id__c  # 15-char ids observed; filter LIKE '1sgWC00000009cn%'
+    include_order:
+      - "1. CIA Consumer Marketable Email (this segment's membership DMO)"
+      - "2. Additional use-case DMOs (BrandProfile, ConsentPreference, etc.)"
+    note: >-
+      As of 2026-08-12 harvest, Latest SM had 0 rows for this Segment_Id while
+      lastSegmentMemberCount was 190926. If the nest is empty, surface the gap;
+      do not drop the CIA layer without explicit user approval of a temporary
+      marketable email+consent fallback.
+
+  DTC_UAT_DTC_Test_Scenario_2:
+    api_name: DTC_UAT_DTC_Test_Scenario_2
+    display_name: UAT -DTC Test Scenario-RX Program
+    dataspace: DTC
+    segment_on: DTC_UnifiedIndividualDtc__dlm
+    market_segment_id: 1sgWC00000008iLYAQ
+    lightning_url: >-
+      https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008iLYAQ
+    status: ACTIVE
+    last_member_count: 2504
+    segment_type: UI
+    lookback: P2Y
+    intent: >-
+      Canonical example of use-case → multi-DMO segment: SegmentOn Unified
+      Individual, AND of ConsentPreference + BrandProfile containers (each
+      count ≥ 1). Teach Recipe B entry point 0 from this shape.
+    use_case: >-
+      Target Prospects, Caregivers, or Patients on medication or a prescription
+      program, enrolled recently, and opted in to communications.
+    containers:
+      - dmo: DTC_ConsentPreference__dlm
+        logic: and
+        filters:
+          - "PreferenceName__c = 'ALL'"
+          - "PreferenceType__c IN ('Brand', 'Topic')"
+          - "PreferenceValue__c = 'IN'"
+        path: Unified → Link → Individual → ContactPointConsent → ConsentPreference
+      - dmo: DTC_BrandProfile__dlm
+        logic: or
+        filters:
+          - "CustomerType__c IN ('Caregiver', 'Prospect', 'Patient')"
+          - "OnPrescriptionDrugProgram__c = true"
+          - "OnMedication__c = true"
+          - "AcquisitionDate__c in last 24 months"
+        path: Unified → Link → Individual → BrandProfile
+    skill_delta: >-
+      When rebuilding or cloning this for Skill creates, prepend CIA Consumer
+      Marketable Email membership as container 0. Description said "3 years";
+      live filter is 24 months — prefer includeCriteria.
+    note: Does not nest CIA in the live UI definition (pre-Skill rule).

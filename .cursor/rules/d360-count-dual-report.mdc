@@ -1,0 +1,30 @@
+---
+description: >-
+  Data 360 count dual-report + chat starters. Use on every HCP/DTC count and when
+  the user starts a chat or asks what prompts to run.
+alwaysApply: true
+---
+
+# Data 360 dual-report & chat starters
+
+## When the user starts a chat or asks what to run
+
+Offer **suggestion prompts** from [prompts/chat-starters.md](../../prompts/chat-starters.md)
+(and the copy-paste block in [prompts/example-prompts.md](../../prompts/example-prompts.md)).
+Prefer prompts that already name **dataspace + populated DMO(s)** so you do not re-ask
+routing questions.
+
+Recommended first offers (one HCP Stage + one DTC):
+
+1. STG-US HQ email opens 90d on `stg_Headquarter_Email_Engagement__dlm`
+2. DTC Premarin brand + opt-in on `DTC_BrandProfile__dlm` + `DTC_ContactPointConsent__dlm`
+
+## Every count answer (HCP and DTC)
+
+1. Dual-report **table**: Data 360 row + Snowflake source row + Delta.
+2. If Snowflake cannot be tallied, keep Count **PENDING**, show validation SQL + query output.
+3. Always include this note when Snowflake is PENDING (or when teaching dual-report):
+
+> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+
+4. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email engagement audiences).

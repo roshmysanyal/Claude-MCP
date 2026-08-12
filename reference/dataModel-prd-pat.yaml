@@ -3,15 +3,17 @@
 # =============================================================================
 # ROUTING
 #   Audience: PATIENT (production). Explicit PRD_PAT / PRD-PAT only.
+#   Patient spaces = DTC audience rule; US Customer spaces are HCP — never mix.
 #
 # ORG SEED (MCP, 2026-08-07)
 #   Dataspace: PRD_PAT (label PRD-PAT, prefix `ppt_`)
+#   Org description: Patient Production Data Space
 #   DATA MODEL IS EMPTY of segmentable profiles — only Static Currency Rates
 #   DMOs were returned by d360_dmo_list. No Individual / UnifiedIndividual /
 #   ContactPoint / Consent objects exist in this space yet.
 #
 #   Do NOT attempt patient counts or segments here until DMOs are published.
-#   Prefer DTC (or DEV_PAT for patient-dev) instead.
+#   Prefer DTC for live patient/D2C data.
 # =============================================================================
 
 version: 1

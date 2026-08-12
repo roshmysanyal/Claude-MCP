@@ -3,12 +3,11 @@
 # File: dataModel-prd-us.yaml
 # =============================================================================
 # ROUTING
-#   This file is the HCP model for dataspace PRD_US (PRD-US, `prd_`).
-#   Sibling of Development (dataModel-dev.yaml). Route here when the user explicitly asks for PRD_US / PRD-US.
-#   POC default remains Development — do not use this file unless named.
-#   Catalog of all spaces: dataModel-index.yaml.
+#   This file is the HCP model for dataspace PRD_US (org label PRD-US —
+#   Production environment for US Customer Data). US Customer Data = HCP.
+#   Sibling of Development (dataModel-dev.yaml). Route here when the user asks for
+#   PRD-US / Prod. Catalog: dataModel-index.yaml.
 #   Ambiguous audience -> ask, don't guess. Never join across dataspaces.
-#   See the Skill's "Semantic layer routing" section.
 #
 # PII PASS (2026-08-07, mirrored from dataModel-dev.yaml)
 #   pii:true  = filter only; never return literals / never SELECT the column in
@@ -70,7 +69,8 @@ version: 1
 defaults:
   dialect: postgresql          # Data 360 Query API v2 dialect
   dataspace: PRD_US
-  dataspace_label: PRD-US
+  dataspace_label: PRD-US      # US Customer Data = HCP
+  org_description: Production environment for US Customer Data
   audience: HCP
   anchor: UnifiedIndividual    # default "people" entity for counts
   governance: >-

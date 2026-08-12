@@ -12,39 +12,45 @@ Source inventory: [../reference/snowflake-stream-sources.md](../reference/snowfl
 
 ---
 
-## Required user-facing output shape
+## Required user-facing output shape — a table
+
+Render the two counts **side by side in a Markdown table** (not prose), for both HCP and DTC, on
+pull (count / status) and push (create / update):
 
 ```text
-**Data 360 count:** <N> HCPs (dataspace <STG_US|Development|PRD_US|DTC>, DMO <api_name>)
-**Snowflake source count:** <M> HCPs
-  Source: <DATABASE>.<SCHEMA>.<TABLE>
-  Stream: <data_stream_name>
+| Source | Count | Reference |
+| --- | --- | --- |
+| Data 360 | <N> | Dataspace <STG_US or Development or PRD_US or DTC> · DMO <api_name> · refreshed <ts> |
+| Snowflake source | <M or PENDING or N/A> | <DATABASE.SCHEMA.TABLE> · stream <data_stream_name> |
+
+Delta: <abs(N-M)> (<pct>%) — VALIDATED | NOT VALIDATED | PENDING (window / access)
 ```
 
-When this count is for a **segment** (inspect or after create), also include:
+**Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of
+PENDING. Until that session is connected, still return the Data 360 count **and** the exact
+Snowflake validation SQL under the table.
+
+Copy-paste prompts that name dataspace + populated DMOs (low clarifying steps):
+[../prompts/example-prompts.md](../prompts/example-prompts.md) · chat starters:
+[../prompts/chat-starters.md](../prompts/chat-starters.md).
+
+When this count is for a **segment** (inspect or after create/update), add the link line under the
+table:
 
 ```text
-**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
+Data 360 segment link: https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
 Segment: <display name> (<segmentApiName>) · ID: <marketSegmentId>
 ```
 
 **If the Snowflake query does not return a count** (error, empty, timeout, access denied, stream
-not ACTIVE, connector not Snowflake, or no session), still tally by showing:
+not ACTIVE, connector not Snowflake, or no session), keep the Snowflake **Count** cell as
+**PENDING** or **N/A** and add the query below the table:
 
 ```text
-**Data 360 count:** <N>
-**Snowflake source count:** PENDING | N/A
-  Source: <DATABASE>.<SCHEMA>.<TABLE>
 **Snowflake validation SQL:**
   <exact SQL>
 **Snowflake query output:**
   <error text | empty result | status — never PII rows>
-```
-
-Optional when both ran successfully:
-
-```text
-**Delta:** <abs(N-M)> (<pct>%) — VALIDATED | NOT VALIDATED | PENDING (window / access)
 ```
 
 Still **never** return PII. Both sides are counts only (`COUNT` / `COUNT(DISTINCT …)`), or
@@ -120,10 +126,12 @@ WHERE ENGAGEMENT_CHANNEL_ACTION = 'OPENED'
 **Answer format:**
 
 ```text
-**Data 360 count:** 376,055 HCPs (dataspace STG_US, DMO stg_Headquarter_Email_Engagement__dlm)
-**Snowflake source count:** <M> HCPs
-  Source: CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL
-  Stream: STG_HCP_OCL_HEADQUARTER_EMAIL
+| Source | Count | Reference |
+| --- | --- | --- |
+| Data 360 | 376,055 | Dataspace STG_US · DMO stg_Headquarter_Email_Engagement__dlm · refreshed <ts> |
+| Snowflake source | <M> | CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL · stream STG_HCP_OCL_HEADQUARTER_EMAIL |
+
+Delta: <abs(376,055 − M)> (<pct>%)
 ```
 
 ---

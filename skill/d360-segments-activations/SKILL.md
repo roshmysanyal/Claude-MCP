@@ -6,20 +6,23 @@ description: >-
   user asks to count, list/read a segment, read its member count, determine
   whether it is published or activated, build a segment from a use case/count,
   describe, rebuild, update, publish, or activate a segment for any brand. Routes
-  by audience: a doctor/HCP use case uses the HCP model (reference/dataModel-dev.yaml
-  in Development, dataModel-stg-us.yaml in STG_US, dataModel-prd-us.yaml in PRD_US);
-  a patient/consumer/D2C use case uses reference/dataModel-dtc.yaml in dataspace DTC.
-  Enforces OCL/Snowflake count validation (never Einstein). Always ask which dataspace
-  (Dev / Stage / Prod) before any count, create, update, or status check unless the
-  user already named one. Every count — including the count behind a create/update
-  and any status check — dual-reports Data 360 vs the Snowflake data-stream source
-  table; if Snowflake is not connected or the stream is not ACTIVE, it still provides
-  the validation SQL **and the Snowflake query output** (error/empty/non-count) and marks
-  the Snowflake side PENDING/N/A. After every count comparison or segment create, include the
-  Data 360 segment link (Lightning URL or openable MarketSegment path with ID). Count responses
-  never include PII. For "within N miles of
-  ZIP/landmark" asks, precompute ZIP centroids into an IN list (see ZIP-radius
-  section) — do not invent in-SQL Haversine.
+  by audience: US Customer Data spaces (DEV-US/STG-US/PRD-US → Development/STG_US/PRD_US)
+  are always HCP; patient spaces (DTC, PRD-PAT) are always patient/D2C — default live
+  patient model is reference/dataModel-dtc.yaml in DTC (PRD-PAT is empty). Enforces
+  OCL/Snowflake count validation (never Einstein). Always ask which dataspace before
+  any count, create, update, or status check unless the user already named one. Every
+  count — including the count behind a create/update and any status check — dual-reports
+  Data 360 vs the Snowflake data-stream source table **in a Markdown table** (Data 360 row +
+  Snowflake source row + Delta); if Snowflake is not connected or the stream is not ACTIVE, it still
+  provides the validation SQL **and the Snowflake query output** (error/empty/non-count) below the
+  table and marks the Snowflake side PENDING/N/A. This table is required for both HCP and DTC, on
+  pull (count/status) and push (create/update). After every count comparison or segment create,
+  include the Data 360 segment link (Lightning URL or openable MarketSegment path with ID) under the
+  table. Count responses never include PII. For
+  patient/consumer/D2C/DTC segment creates and updates, always nest CIA Consumer
+  Marketable Email (Segment Membership Latest DMO) first on DTC_UnifiedIndividualDtc__dlm,
+  then add the other required DMOs. For "within N miles of ZIP/landmark" asks, precompute
+  ZIP centroids into an IN list (see ZIP-radius section) — do not invent in-SQL Haversine.
 ---
 
 # Data 360 Segment POC (Governed Skill)
@@ -43,24 +46,45 @@ entity model and operations below — no brand allowlist.
 
 - **Dataspace (required — ask first, every time):** For every **use case** — whether the user asks
   to **count**, **create a segment**, **update a segment**, or **check a segment's count/status** —
-  if the user has not already named a dataspace, **ask whether to run against Dev, Stage, or Prod**
-  before doing anything else. Do **not** silently default. Map the answer and load that YAML:
+  if the user has not already named a dataspace, **ask which dataspace** before doing anything else.
+  Do **not** silently default. Org Data Spaces (labels → MCP API name):
 
-  | User says | HCP dataspace / model | Patient dataspace / model |
-  | --- | --- | --- |
-  | **Dev** / Development / DEV-US | `Development` → [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | Prefer `DTC` → [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) (or `DEV_PAT` if they name patient-dev) |
-  | **Stage** / Staging / STG-US | `STG_US` → [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | Ask which patient space if unclear (`DTC` / `DEV_PAT`); no separate STG patient model |
-  | **Prod** / Production / PRD-US | `PRD_US` → [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | `PRD_PAT` is empty — stop; offer `DTC` if they meant live patient data |
+  | Org label | MCP API name | Org description | Audience |
+  | --- | --- | --- | --- |
+  | **DEV-US** | `Development` | Development environment for US Customer Data | **HCP** |
+  | **STG-US** | `STG_US` | Staging environment for US Customer Data | **HCP** |
+  | **PRD-US** | `PRD_US` | Production environment for US Customer Data | **HCP** |
+  | **DTC** | `DTC` | DTC | **Patient / D2C** |
+  | **PRD-PAT** | `PRD_PAT` | Patient Production Data Space | **Patient** (empty — do not audience-query; offer `DTC`) |
+  | **LAB** | `LAB` | LAB | Lab sandbox |
 
-  Every dataspace has a YAML in [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml).
+  **Audience rule (fixed):**
+  - **US Customer Data** spaces (`DEV-US` / `STG-US` / `PRD-US`) → always **HCP**
+  - **Patient** spaces (`DTC` / `PRD-PAT`) → always **patient / consumer / D2C**
+  - Never put a patient ask in a US-\* space, or an HCP ask in `DTC` / `PRD-PAT`
+
+  | User says | Route |
+  | --- | --- |
+  | **Dev** / DEV-US (HCP) | `Development` → [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) |
+  | **Stage** / STG-US (HCP) | `STG_US` → [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) |
+  | **Prod** / PRD-US (HCP) | `PRD_US` → [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) |
+  | **Patient** / DTC / D2C | `DTC` → [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) |
+  | **PRD-PAT** | Stop — empty; offer `DTC` for live patient data |
+
+  Catalog: [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml).
   Pass the chosen dataspace on every Query SQL and Segment op. **Do not** silently fall back to
   `default`.
-- **Audience routing (required — decide before mapping):** A **doctor / HCP** use case routes to the
-  **HCP** model in the chosen dataspace (`Development` / `STG_US` / `PRD_US`). A **patient /
-  consumer / DTC / D2C** use case routes to the **patient** model — default **`DTC`**
-  ([dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml)). If audience is ambiguous, ask
-  "**HCP (doctor) or patient (DTC)?**" together with the Dev/Stage/Prod question, then load the
-  matching YAML. Never build one request across both audiences.
+- **Audience routing (required — decide before mapping):** A **doctor / HCP / US customer** use case
+  routes to an **HCP** US space (`Development` / `STG_US` / `PRD_US`). A **patient / consumer /
+  DTC / D2C** use case routes to **`DTC`** ([dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml)).
+  If audience is ambiguous, ask "**HCP (US customer) or patient (DTC)?**" together with which
+  dataspace, then load the matching YAML. Never build one request across both audiences.
+- **Patient / consumer / D2C / DTC segments — CIA base layer (required):** Whenever you **build**
+  (Recipe B) or **update** (Recipe U) a patient/consumer/D2C/DTC segment, you **must** include the
+  **CIA Consumer Marketable Email** population as the **first** membership filter, then add the
+  other DMOs the use case needs (Brand Profile, Consent Preference, etc.). Do not create a D2C
+  segment that skips this base. Details: *CIA Consumer Marketable Email base (D2C)* under Recipe B
+  and [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) `reference_segments`.
 - **Always dual-validate against Snowflake (count / create / update / status):** Any operation that
   produces a member count — a Recipe A count, the count behind a **create** or **update**, or a
   **segment status** read — must be validated against the **Snowflake data-stream source table**
@@ -102,10 +126,11 @@ entity model and operations below — no brand allowlist.
 
 | Dataspace | Model | Count output |
 | --- | --- | --- |
-| **`STG_US`** (Staging / STG-US) | [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | **Number only** — never PII |
-| **`PRD_US`** (Production / PRD-US) | [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | **Number only** — never PII |
-| `Development` (DEV-US) | [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | **Number only** — never PII |
-| `DTC` / `DEV_PAT` (patient) | [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) / [dataModel-dev-pat.yaml](../../reference/dataModel-dev-pat.yaml) | **Number only** — never PII (+ no individual health values) |
+| **`STG_US`** (STG-US — US Customer / HCP) | [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | **Number only** — never PII |
+| **`PRD_US`** (PRD-US — US Customer / HCP) | [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | **Number only** — never PII |
+| `Development` (DEV-US — US Customer / HCP) | [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | **Number only** — never PII |
+| `DTC` (patient / D2C) | [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) | **Number only** — never PII (+ no individual health values) |
+| `PRD_PAT` (Patient Production — empty) | [dataModel-prd-pat.yaml](../../reference/dataModel-prd-pat.yaml) | Do not audience-query; offer `DTC` |
 | `LAB` | [dataModel-lab.yaml](../../reference/dataModel-lab.yaml) | **Number only** — never PII |
 
 When the user asks to count against **staging** or **production**, route to `STG_US` /
@@ -157,6 +182,49 @@ must remain `COUNT(DISTINCT …)` only — never add PII columns.
   categorical fields). For empty POC Staging/Development results, the **literal count SQL** under
   **SQL (for validation)** — that SQL must itself be count-only (see below).
 
+### Required dual-report **table** (always render this — HCP and DTC)
+
+Every answer that produces a member count — a **pull** (Recipe A count / Recipe S status read) or a
+**push** (the count behind a Recipe B create or Recipe U update) — must present the Data 360 and
+Snowflake numbers **side by side in a Markdown table**, not just prose. This is mandatory for both
+**HCP** (`Development` / `STG_US` / `PRD_US`) and **DTC / patient** (`DTC`) dataspaces.
+
+Render exactly this shape (fill the values; keep the columns):
+
+```text
+| Source | Count | Reference |
+| --- | --- | --- |
+| Data 360 | <N> | Dataspace <name> · DMO <api_name> · refreshed <ts> |
+| Snowflake source | <M or PENDING or N/A> | <DATABASE.SCHEMA.TABLE> · stream <stream_name> |
+
+Delta: <D360 − Snowflake, or PENDING / N/A>
+Data 360 segment link: <Lightning MarketSegment URL>   ← only for segment (create/update/status) asks
+```
+
+Rules for the table:
+
+- **Always include both rows.** Never drop the Snowflake row. If Snowflake cannot be tallied
+  (not connected, stream not ACTIVE, connector not Snowflake, error, empty, access denied), put
+  **PENDING** or **N/A — connector not Snowflake** in the Count cell — never leave it blank.
+- **When the Snowflake count is not possible, share the query.** Immediately below the table add:
+
+  ```text
+  **Snowflake validation SQL:**
+    SELECT COUNT(DISTINCT <ID>) FROM DATABASE.SCHEMA.TABLE WHERE <same filters as the D360 count>;
+  **Snowflake query output:**
+    <error text | empty-result note | status — never PII rows>
+  ```
+
+- **Always include the Data 360 link for segment asks** (Recipe B create, Recipe U update, Recipe S
+  status): the `Data 360 segment link:` line under the table, built as
+  `https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view` (or the path +
+  `marketSegmentId` + API name when the host is unknown). For a plain Recipe A count with no segment,
+  omit that line.
+- **Counts only — no PII in the table.** The table carries integers and source metadata, never person
+  attributes.
+- Keep business labels in the surrounding prose (see *Talking to the user*); the table's `Reference`
+  column is the one place API names / source tables are always shown, since they are the audit trail.
+
 ### What you must never return with a count
 
 - Any `pii:true` field literal from the routed model (name, email, phone, address, postal code,
@@ -196,50 +264,53 @@ whether a field is PII, **treat it as PII** (filter-only) until the architect co
 
 There is **one semantic-layer file per dataspace**. Catalog:
 [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml). Your **first step on
-every count** is: (1) decide audience (HCP vs patient), (2) **ask Dev / Stage / Prod** unless
-already named, (3) load that YAML, (4) announce the choice before querying.
+every count** is: (1) decide audience (HCP / US customer vs patient / DTC), (2) **ask which
+dataspace** unless already named, (3) load that YAML, (4) announce the choice before querying.
+
+**Fixed audience rule:** US Customer Data (`DEV-US` / `STG-US` / `PRD-US`) = **HCP**. Patient
+spaces (`DTC` / `PRD-PAT`) = **patient / D2C**.
 
 ### Ask before every HCP or patient count (required)
 
-Unless the user already named a dataspace in the same message (e.g. "in staging", "in PRD_US",
-"in Development"), **stop and ask**:
+Unless the user already named a dataspace in the same message (e.g. "in STG-US", "in DTC",
+"in DEV-US"), **stop and ask**:
 
-> Which dataspace should I use for this count — **Dev**, **Stage**, or **Prod**?
+> Which dataspace — **DEV-US**, **STG-US**, or **PRD-US** (HCP / US Customer), or **DTC** (patient)?
 
 Do **not** run the count until they answer. Then map:
 
-| Choice | HCP | Patient |
+| Choice | MCP dataspace | Model |
 | --- | --- | --- |
-| **Dev** | `Development` / [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | `DTC` (or `DEV_PAT` if they specify patient-dev) |
-| **Stage** | `STG_US` / [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | Confirm patient space (`DTC` / `DEV_PAT`) |
-| **Prod** | `PRD_US` / [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | `PRD_PAT` empty — stop; offer `DTC` |
+| **DEV-US** / Dev (HCP) | `Development` | [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) |
+| **STG-US** / Stage (HCP) | `STG_US` | [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) |
+| **PRD-US** / Prod (HCP) | `PRD_US` | [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) |
+| **DTC** / patient / D2C | `DTC` | [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) |
+| **PRD-PAT** | `PRD_PAT` | Empty — stop; offer `DTC` |
 
 If they also omit the audience noun ("people", "customers"), ask **audience and dataspace**
-together before running.
+together before running. "US customers" → HCP; "patients" → DTC.
 
 ### Catalog (explicit dataspace → file)
 
-| Dataspace (API name) | Label | Audience | File | Notes |
+| Org label | MCP API name | Audience | File | Notes |
 | --- | --- | --- | --- | --- |
-| `Development` | DEV-US | HCP | [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | POC default for HCP |
-| `DTC` | DTC | PATIENT | [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) | Default for patient/consumer |
-| `PRD_US` | PRD-US | HCP | [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | Production — governance sign-off before writes; **counts = number only, never PII** |
-| `STG_US` | STG-US | HCP | [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | Staging; identity link = `stg_IndividualIdentityLink__dlm`; **counts = number only, never PII** |
-| `DEV_PAT` | DEV-PAT | PATIENT | [dataModel-dev-pat.yaml](../../reference/dataModel-dev-pat.yaml) | Patient-dev; thinner than DTC |
-| `PRD_PAT` | PRD-PAT | PATIENT | [dataModel-prd-pat.yaml](../../reference/dataModel-prd-pat.yaml) | **EMPTY** of profile DMOs — stop, do not improvise |
-| `LAB` | LAB | HCP | [dataModel-lab.yaml](../../reference/dataModel-lab.yaml) | No IR; segment on `LAB_Individual__dlm` |
-| `default` | default | — | [dataModel-default.yaml](../../reference/dataModel-default.yaml) | ssot__ inventory; Individual not segmentable |
+| DEV-US | `Development` | HCP (US Customer Data) | [dataModel-dev.yaml](../../reference/dataModel-dev.yaml) | POC default for HCP |
+| STG-US | `STG_US` | HCP (US Customer Data) | [dataModel-stg-us.yaml](../../reference/dataModel-stg-us.yaml) | Staging; identity link = `stg_IndividualIdentityLink__dlm` |
+| PRD-US | `PRD_US` | HCP (US Customer Data) | [dataModel-prd-us.yaml](../../reference/dataModel-prd-us.yaml) | Production — governance before writes |
+| DTC | `DTC` | PATIENT | [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) | Default live patient / D2C |
+| PRD-PAT | `PRD_PAT` | PATIENT | [dataModel-prd-pat.yaml](../../reference/dataModel-prd-pat.yaml) | **EMPTY** — stop; offer DTC |
+| LAB | `LAB` | LAB | [dataModel-lab.yaml](../../reference/dataModel-lab.yaml) | Lab sandbox; no IR |
+| default | `default` | — | [dataModel-default.yaml](../../reference/dataModel-default.yaml) | ssot__ inventory; not segmentable |
 
 **Routing rules**
 
-1. **Audience noun decides HCP vs patient.** "How many **HCPs**…" → HCP models. "How many
-   **patients** / consumers…" → patient models. Brand names alone do **not** decide it.
-2. **Ask Dev / Stage / Prod before every count** unless the dataspace is already named in the
-   request. Never silently default to Development or DTC for counts.
+1. **Audience noun decides HCP vs patient.** "How many **HCPs**…" / US customers → HCP US-\* spaces.
+   "How many **patients** / consumers…" → `DTC`. Brand names alone do **not** decide it.
+2. **Ask which dataspace before every count** unless already named. Never silently default.
 3. **An explicit dataspace in the request wins.** Load that space's YAML from the table above and
    restate the choice before running.
 4. **Ambiguous audience → ask, don't guess.** "people," "individuals," "audience," or "customers"
-   with no audience noun → ask audience (and dataspace if missing) first.
+   with no audience noun → ask "**HCP (US customer) or patient (DTC)?**" (and dataspace if missing).
 5. **One model per query. Never mix.** Do **not** join across dataspaces or carry a field/literal
    from one model into another. Field names differ (e.g. DTC email engagement uses `Individual__c`;
    LAB specialty is `Primary_Specialty__c` with an underscore; STG's identity link DMO name differs).
@@ -366,17 +437,21 @@ user if ambiguous.
    2. Build an equivalent `COUNT(DISTINCT …)` on that source table with the **same filters**.
    3. **Run / tally the Snowflake query** whenever access exists. Capture either the integer count
       **or** the non-count outcome (error, empty, timeout, access denied).
-   4. **Always present both sides** in this shape (marketer-facing):
+   4. **Always present both sides in the required dual-report table** (see *Required dual-report
+      table* under PII-safe counts) — never prose-only:
 
       ```text
-      **Data 360 count:** <N> (dataspace <name>, DMO <api_name>)
-      **Snowflake source count:** <M | PENDING | N/A>
-        Source: <DATABASE>.<SCHEMA>.<TABLE>
-        Stream: <stream_name>
+      | Source | Count | Reference |
+      | --- | --- | --- |
+      | Data 360 | <N> | Dataspace <name> · DMO <api_name> · refreshed <ts> |
+      | Snowflake source | <M or PENDING or N/A> | <DATABASE.SCHEMA.TABLE> · stream <stream_name> |
+
+      Delta: <D360 − Snowflake, or PENDING / N/A>
       ```
 
-      If the stream is not Snowflake-fed, say **Snowflake source count: N/A** and name the connector.
-      **If the Snowflake query does not return a count**, still include:
+      If the stream is not Snowflake-fed, put **N/A — connector not Snowflake** in the Snowflake
+      Count cell and name the connector. **If the Snowflake query does not return a count**, keep the
+      Snowflake row as **PENDING** and add below the table:
 
       ```text
       **Snowflake validation SQL:** <exact SQL>
@@ -483,25 +558,27 @@ whether it is activated. This is read-only; do not publish, activate, update, or
 ### Required status output
 
 After the segment member count, **tally Snowflake** for the segment's primary DMO/filters (Recipe A
-step 6). Then report:
+step 6). Then report the counts in the **required dual-report table** followed by the lifecycle facts:
 
 ```text
-Segment: <display name> (<segmentApiName>)
-Dataspace / SegmentOn: <dataspace> / <DMO>
-**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
+| Source | Count | Reference |
+| --- | --- | --- |
+| Data 360 | <N> | Dataspace <name> · SegmentOn <DMO> · evaluated <ts> |
+| Snowflake source | <M or PENDING or N/A> | <DATABASE.SCHEMA.TABLE> · stream <stream_name> |
+
+Delta: <D360 − Snowflake, or PENDING / N/A>
+Data 360 segment link: https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
   (or path template + marketSegmentId if host unknown)
-Segment member count: <N | PENDING> (<exact|approx>, evaluated <timestamp>)
-**Data 360 count:** <N>   # same member count, dual-report label
-**Snowflake source count:** <M | PENDING | N/A>
-  Source: <DATABASE>.<SCHEMA>.<TABLE>
-**Snowflake validation SQL:** <exact SQL when M is not returned as an integer>
-**Snowflake query output:** <error/empty/status when the query did not return a count — never PII>
+
+Segment: <display name> (<segmentApiName>)
 Publication status: <DRAFT|PUBLISHED|ACTIVE|…> (last published <timestamp>)
 Activation status: <ACTIVATED|CONFIGURED, NOT ACTIVE|NOT ACTIVATED|UNKNOWN>
   Activation: <name/id/status> → Target: <target name>   # one line per binding
 ```
 
-Never omit the **Data 360 segment link** on a segment count/status read.
+If the Snowflake count is not an integer, keep its cell **PENDING** and add the **Snowflake
+validation SQL** + **Snowflake query output** below the table (never PII). Never omit the **Data 360
+segment link** on a segment count/status read.
 ## Recipe B — Push (build a segment → activate)
 
 **Trigger:** the user wants to turn a population into a segment — most commonly **"now build that as
@@ -517,14 +594,32 @@ There are three entry points; they converge on the same build-and-status core.
 
 ### Entry point 0 — build directly from a use case
 
+**Canonical DTC reference (learn this shape):**
+[UAT -DTC Test Scenario-RX Program](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008iLYAQ)
+(`DTC_UAT_DTC_Test_Scenario_2`, `1sgWC00000008iLYAQ`, ~2,504 members). Use-case description →
+**one SegmentOn + AND of DMO containers**. Full walkthrough:
+[../../reference/creating-segments.md](../../reference/creating-segments.md) *Worked example — DTC
+use case → multi-DMO containers*.
+
 1. When the user provides a plain-English use case and asks to create a segment, first apply
    Recipe A steps 0–6: confirm audience + dataspace, map the semantic layer, run the count-only
    query, and (when Snowflake-fed) prepare the dual report. This establishes the expected
    population before any write.
-2. Confirm the interpreted filters and the Data 360 count with the user. If the count is 0 because
-   a backing DMO is empty, show the SQL and offer a **draft definition**, but do not imply that the
-   segment will have members.
-3. Translate the exact confirmed mapping into membership SQL. Never reinterpret or broaden the
+2. **Decompose the use case into DMO containers** (UI pattern = `NumberAggregation` count ≥ 1 per
+   related DMO; DBT pattern = one `Id__c IN (SELECT …)` subquery per container):
+   - Restate the use case as bullet filters.
+   - Assign each filter cluster to a **related DMO** (e.g. Consent Preference vs Brand Profile).
+   - **Between containers:** top-level **AND** (person must satisfy every container).
+   - **Inside a container:** **AND** for co-required attributes; **OR** for alternatives.
+   - **Patient/D2C:** prepend the **CIA Consumer Marketable Email** membership container first
+     (Skill rule), then the use-case containers — even if a legacy UI reference omitted CIA.
+   - SegmentOn = unified profile for that dataspace (`DTC_UnifiedIndividualDtc__dlm` for DTC).
+   - Related DMOs always traverse the **identity link** (Unified → Link → source / related).
+3. Confirm the interpreted filters, container AND/OR logic, and the Data 360 count with the user.
+   If the count is 0 because a backing DMO is empty, show the SQL and offer a **draft definition**,
+   but do not imply that the segment will have members. Prefer live `includeCriteria` over a
+   marketing description when they diverge (e.g. description "3 years" vs filter **24 months**).
+4. Translate the exact confirmed mapping into membership SQL. Never reinterpret or broaden the
    use case between count and create.
 
 ### Entry point 1 — build from the count you just ran (primary)
@@ -541,6 +636,49 @@ There are three entry points; they converge on the same build-and-status core.
    **only** input allowed into the rebuild; do **not** copy the original raw filter JSON forward.
    Then map that description through the semantic layer exactly as in entry point 1.
 
+### CIA Consumer Marketable Email base (D2C) — required before other DMOs
+
+For every **patient / consumer / D2C / DTC** segment create or update:
+
+1. **SegmentOn** must be **`DTC_UnifiedIndividualDtc__dlm`** (same profile as CIA Consumer Marketable
+   Email). Do **not** SegmentOn `DTC_Individual__dlm` for activatable D2C audiences.
+2. **First filter** — nest the **CIA Consumer Marketable Email** segment membership DMO, then AND
+   every other use-case DMO inside additional `WHERE … IN (SELECT …)` subqueries:
+   - Display name: **CIA Consumer Marketable Email**
+   - Segment API name: `DTC_CIA_Consumer_Marketable_Email`
+   - `marketSegmentId`: `1sgWC00000009cnYAA` (confirm with `d360_segment_get` if stale)
+   - Membership Latest DMO: `DTC_UnifiedIndividualDtc_SM_1780343389__dlm`
+     (`segmentMembershipDmo.latestTable` on the CIA segment)
+   - Confirmed fields (2026-08-12): `Id__c` = Unified Individual PK; `Segment_Id__c` = segment id
+     (org stores **15-char** ids in this DMO — use `1sgWC00000009cn` or
+     `Segment_Id__c LIKE '1sgWC00000009cn%'`; confirm before publish)
+3. **Then** add the necessary DMOs for the ask (Brand Profile, Contact Point Consent / Preference,
+   email, engagement, etc.) via declared join keys / identity-link paths in
+   [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml).
+4. **Shape (membership):**
+
+```sql
+SELECT DTC_UnifiedIndividualDtc__dlm.Id__c
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Id__c
+    FROM DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    WHERE DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Segment_Id__c LIKE '1sgWC00000009cn%'
+)
+  AND DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    /* additional DMO subquery(s) for brand / consent / etc. */
+  );
+```
+
+5. **Counts (Recipe A) for the same population** must apply the same CIA membership nest first so
+   the count matches the segment. Prefer `COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)`.
+6. **If CIA membership rows are missing** in the Latest SM DMO (nest returns 0 while
+   `lastSegmentMemberCount` on CIA is non-zero): **do not silently drop the CIA layer**. Tell the
+   user the nest is empty, show the SQL, and only if they explicitly approve a temporary fallback,
+   replicate marketable email+consent filters from `reference_segments` /
+   `journeys.marketable_patients` — still SegmentOn Unified Individual, still tag **D2C**, and still
+   call out that the durable pattern is the CIA membership DMO.
+
 ### Then — for any entry point (build → create → publish → validate → optional activate)
 
 3. **Translate the criteria into segment `sql`** per
@@ -552,7 +690,8 @@ There are three entry points; they converge on the same build-and-status core.
    declared keys; subqueries only in `WHERE`. Never submit a `COUNT(DISTINCT …)` — Data 360 rejects
    it as a segment. Create/publish in the **routed dataspace** — an **HCP** segment goes to the HCP
    dataspace the user chose (`Development` / `STG_US` / `PRD_US`); a **patient/D2C** segment goes to
-   `DTC` — unless the user explicitly chose another. For ZIP-radius
+   `DTC` — unless the user explicitly chose another. **For patient/D2C, apply the CIA Consumer
+   Marketable Email base layer above before any other DMO filters.** For ZIP-radius
    populations, reuse the **same precomputed ZIP5 `IN` list** from the count
    ([../../reference/zip-radius.md](../../reference/zip-radius.md)).
 4. Propose deterministic names — **tag the audience** so every segment name states who it targets:
@@ -579,9 +718,10 @@ There are three entry points; they converge on the same build-and-status core.
    matches the Recipe A count for the same criteria — same population, so they should agree. If they
    diverge, **stop and reconcile** before activating (a mismatch usually means the segment SQL and the
    count SQL don't express the same filters). **Always tally Snowflake** for the same filters
-   (Recipe A step 6): if Snowflake does not return a count, share **Snowflake validation SQL** and
-   **Snowflake query output** next to the Data 360 numbers. Always include the
-   **Data 360 segment link** in this dual-report block.
+   (Recipe A step 6) and present the numbers in the **required dual-report table** (D360 row +
+   Snowflake row + `Data 360 segment link:` line). If Snowflake does not return a count, keep its
+   cell **PENDING** and add the **Snowflake validation SQL** + **Snowflake query output** below the
+   table. Never render this push-side validation as prose-only or omit the segment link.
    - **POC Staging empty-result rule:** when the routed dataspace is **`STG_US`** or **`Development`**
      and membership is **0 / empty** (or the underlying DMOs have no rows so the segment cannot be
      meaningfully validated), **always return the literal segment `sql`** you built/submitted —
@@ -613,11 +753,14 @@ brand, window, threshold), rename it, or change its schedule.
 2. **Read the current segment** with `d360_segment_get` (Recipe S) and restate its definition in
    plain English so the user confirms what they're changing from.
 3. **Re-map the new criteria** through the semantic layer (same rules as Recipe B). Rebuild the
-   **membership SQL** (SegmentOn PK only — no `COUNT`, no PII).
+   **membership SQL** (SegmentOn PK only — no `COUNT`, no PII). For patient/D2C updates, **keep**
+   the **CIA Consumer Marketable Email** membership nest as the first filter, then apply the
+   changed DMOs.
 4. **Count the new population first (Recipe A) and dual-validate against Snowflake** — **tally** the
-   Snowflake query; report Data 360 + Snowflake source counts. If Snowflake does not return a
-   count, share the SQL **and** the Snowflake query output, then mark PENDING/N/A. This shows the
-   impact of the change before writing.
+   Snowflake query; report Data 360 + Snowflake source counts in the **required dual-report table**
+   (D360 row + Snowflake row + `Data 360 segment link:` line). If Snowflake does not return a
+   count, keep its cell PENDING and share the SQL **and** the Snowflake query output below the table.
+   This shows the impact of the change before writing.
 5. **Confirm before writing.** Show old vs new definition, dataspace, the new expected count, and
    the existing **Data 360 segment link**.
 6. `search` → `payload_examples` → `execute` **`d360_segment_update`** in the routed dataspace.
@@ -680,13 +823,27 @@ answer into business language; keep the technical form for execution and for any
   routed model (e.g. *HCP* or *Patient*, not
   `ssot__Individual__dlm`; *Salutation*, not `ssot__Salutation__c`). The labels are governed in
   the locked semantic layer, so this works in `strict` mode without a live metadata call.
-- **State counts in plain language — always both sides.** Lead with:
+- **State counts in the required dual-report table — always both sides.** Lead the numbers with the
+  table from *Required dual-report table* (Data 360 row + Snowflake source row, then Delta, then the
+  `Data 360 segment link:` line for segment asks):
 
-  > **Data 360 count:** 376,055 HCPs  
-  > **Snowflake source count:** … HCPs (Source: `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL`)
+  ```text
+  | Source | Count | Reference |
+  | --- | --- | --- |
+  | Data 360 | 376,055 | Dataspace STG_US · DMO stg_Headquarter_Email_Engagement__dlm · refreshed <ts> |
+  | Snowflake source | 375,900 | CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL · stream STG_HCP_OCL_HEADQUARTER_EMAIL |
+  ```
 
-  Never show only the D360 number when a Snowflake stream source exists. Never accompany counts
-  with PII samples.
+  You may add a plain-English restatement above the table (e.g. "376,055 HCPs opened an HQ email in
+  the last 90 days"). Never show only the D360 number when a Snowflake stream source exists, never
+  render the comparison as prose-only, and never accompany counts with PII samples. When the Snowflake
+  count is not possible, keep its cell **PENDING / N/A** and put the validation SQL + query output
+  under the table. Always include this note when Snowflake is PENDING:
+
+  > **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+
+  When the user **starts a chat** or asks what to run, offer suggestion prompts from
+  [../../prompts/chat-starters.md](../../prompts/chat-starters.md) (dataspace + populated DMO named).
 
 - **Describe criteria in plain English.** "HCPs whose salutation is *Mr.*" — not a raw SQL `WHERE` clause.
 - **Hide SQL and API names by default.** Don't lead with the segment `sql` or DMO/field API names.
@@ -718,16 +875,18 @@ answer into business language; keep the technical form for execution and for any
   and validation metadata only. Count SQL must `SELECT COUNT(DISTINCT …)` only — filters may use
   PII columns; results must not. No sample people, no PII grids, no health-attribute row dumps.
   See *PII-safe counts*.
-- **Dual-report D360 + Snowflake source — for count, create, update, and status.** For any operation
-  that yields a member count, look up the stream source in
-  [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md) and
-  **tally the Snowflake query**. Report **Data 360 count** and **Snowflake source count** per
+- **Dual-report D360 + Snowflake source in a table — for count (pull), create/update (push), and
+  status.** For any operation that yields a member count — HCP **or** DTC — look up the stream source
+  in [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md),
+  **tally the Snowflake query**, and render the **required dual-report table** (Data 360 row +
+  Snowflake source row + Delta; `Data 360 segment link:` line for segment asks) per
+  *Required dual-report table* and
   [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md).
   **If Snowflake is not connected, the data stream is not ACTIVE (or not Snowflake-fed), or the
   Snowflake query does not return a count, still provide the exact Snowflake validation SQL and the
-  Snowflake query output** (error/empty/status — never PII), and mark the Snowflake side **PENDING** /
-  **N/A — connector not Snowflake**. Do not ship a D360-only answer when a Snowflake table feeds the
-  stream.
+  Snowflake query output** (error/empty/status — never PII) below the table, and mark the Snowflake
+  cell **PENDING** / **N/A — connector not Snowflake**. Do not ship a D360-only answer, and do not
+  render the comparison as prose-only, when a Snowflake table feeds the stream.
 - **Always include the Data 360 segment link** after creating/updating a segment, and whenever
   comparing or reading a segment count: Lightning
   `/lightning/r/MarketSegment/<marketSegmentId>/view` (with org host when known) plus display/API
@@ -742,9 +901,12 @@ answer into business language; keep the technical form for execution and for any
   a count; use the integer (+ OCL/Snowflake benchmark). Writes still need governance sign-off.
 - **Profile unknown / asked-about values — don't guess literals.** When the user asks whether a value exists, or you are unsure what a non-PII field contains, run the value-distribution `GROUP BY` query (Recipe A step 6), then append results to [../../reference/observed-values.md](../../reference/observed-values.md) and, when stable, propose `sampleValues` on the routed dataModel YAML. Never invent filter literals.
 - **ZIP-radius = precomputed `IN` list.** For "within N miles of ZIP/landmark," derive ZIP5s outside D360 (GeoNames centroids + Haversine) and filter `SUBSTRING(PostalCodeId__c FROM 1 FOR 5) IN (...)`. Do **not** invent in-SQL distance math or assume a ZIP-centroid DMO unless it is `verified` in the routed model. Same list for count and segment. See [../../reference/zip-radius.md](../../reference/zip-radius.md).
-- **Ask Dev / Stage / Prod before every HCP or patient count.** Do not silently default to
-  Development or DTC. If the dataspace is already named in the request, honor it and restate it;
-  otherwise ask and wait. Then load the matching YAML from [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml). Ambiguous audience → **ask**. Never mix models. `PRD_PAT` is empty and `default` is not segmentable — stop, don't improvise.
+- **Ask dataspace before every HCP or patient count.** US Customer spaces (`DEV-US` /
+  `STG-US` / `PRD-US`) are **HCP**; patient spaces (`DTC` / `PRD-PAT`) are **DTC/D2C**. Do not
+  silently default. If the dataspace is already named, honor it and restate audience + API name;
+  otherwise ask and wait. Then load the matching YAML from [../../reference/dataModel-index.yaml](../../reference/dataModel-index.yaml).
+  Ambiguous audience → **ask**. Never mix models. `PRD_PAT` is empty and `default` is not
+  segmentable — stop, don't improvise.
 - **Use the chosen dataspace on every op.** Pass it on each query and segment build. Do not silently
   query another dataspace.
 - **Patient health data is counts-only.** In the DTC model, BrandProfile health attributes (disease
@@ -753,6 +915,10 @@ answer into business language; keep the technical form for execution and for any
 - **Refresh-timing gate.** Always capture and report both timestamps; never compare across different refresh windows.
 - **No unbounded reads.** Return counts and definitions, not raw HCP/patient/PII rows. Never `SELECT *` on people tables for a count ask.
 - **Segment SQL ≠ count SQL.** A segment's inclusion criteria return the **list of SegmentOn PKs** (the membership), not a number: project the **SegmentOn profile PK** (**plus its key qualifier if the PK has one** — e.g. `ssot__Individual__dlm` requires `KQ_Id__c` alongside `ssot__Id__c`) — no aggregation, no `DISTINCT`, no `SELECT *`, no aliases, no `CASE`; fully-qualified columns; joins only on declared relationship keys; subqueries only in `WHERE` (one column). Never submit a `COUNT(DISTINCT …)` query as a segment. See [../../reference/creating-segments.md](../../reference/creating-segments.md).
+- **D2C / patient segments always nest CIA Consumer Marketable Email first.** Before Brand Profile,
+  consent, engagement, or any other DMO, filter to members of **CIA Consumer Marketable Email** via
+  its Segment Membership Latest DMO (`DTC_UnifiedIndividualDtc_SM_1780343389__dlm`), with
+  SegmentOn `DTC_UnifiedIndividualDtc__dlm`. See Recipe B *CIA Consumer Marketable Email base*.
 - **Never guess the schema.** DMOs, fields, and join keys come from the routed model — not from field-name inference, and not from the other audience's model. Count people with `COUNT(DISTINCT` anchor `count_key)`. A count built on a `VERIFY` element is still returned — just note the mapping is unverified pending architect confirmation.
 - **Stay in the entity model.** Only the authorized objects/fields in the routed model and the listed operations, regardless of brand.
 - **Respect Discovery mode.** In `strict` mode, never run runtime metadata/discovery ops — use only the locked, `verified` model; ask a human to add anything missing. Runtime discovery is allowed only in `propose` mode, and only as a `VERIFY` proposal.
@@ -775,10 +941,17 @@ You:
 3. Map through that model (anchor, path, fields, dataspace).
 4. `search "query sql count"` → get the Query op name.
 5. `execute` a `COUNT(DISTINCT ...)` query with `dataspace: Development` → e.g. `12,431` (D360 refresh: `<ts>`).
-6. Map the DMO to its Snowflake stream table → run (or request) the source count → report:
+6. Map the DMO to its Snowflake stream table → run (or request) the source count → report in the
+   **required dual-report table**:
 
-   > **Data 360 count:** 12,431  
-   > **Snowflake source count:** 12,290 (Source: `DATABASE.SCHEMA.TABLE`)
+   ```text
+   | Source | Count | Reference |
+   | --- | --- | --- |
+   | Data 360 | 12,431 | Dataspace Development · DMO <api_name> · refreshed <ts> |
+   | Snowflake source | 12,290 | DATABASE.SCHEMA.TABLE · stream <stream_name> |
+
+   Delta: 141 (1.1%)
+   ```
 
 7. Prompt/run the formal OCL/Snowflake benchmark if required for the **"validated"** label → delta
    within 2–5%, same refresh window → **validated**.
