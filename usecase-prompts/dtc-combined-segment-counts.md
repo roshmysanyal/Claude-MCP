@@ -53,7 +53,7 @@ If Snowflake is not reachable from the agent session:
 
 ---
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.  
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.  
 > Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md) · Full bank: [../prompts/example-prompts.md](../prompts/example-prompts.md).
 
 ## Use case A — Brand profile + opted in
@@ -65,7 +65,7 @@ If Snowflake is not reachable from the agent session:
 **Copy-paste (low clarifying steps):**
 
 ```text
-In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Dual-report Data 360 + Snowflake validation against DTC_BRAND_PROFILES joined to DTC_OT_EMAIL_CONSENTS in CDP_US_DTC_STG_DB.DTC_DC_IN. If Snowflake is unreachable, return the exact validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Dual-report Data 360 + Snowflake validation against DTC_BRAND_PROFILES joined to DTC_OT_EMAIL_CONSENTS in CDP_US_DTC_STG_DB.DTC_DC_IN. If Snowflake is unreachable, return the exact validation SQL and mark PENDING. Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
 ```
 
 **Short FAQ prompt:** For patients, how many Premarin brand-profile consumers are opted in?

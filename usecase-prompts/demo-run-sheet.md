@@ -7,7 +7,7 @@
 
 Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake.md) · Prompt bank: [../prompts/example-prompts.md](../prompts/example-prompts.md) · Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md)
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING. Use copy-paste prompts that name **dataspace + populated DMO** so the agent does not re-ask routing questions.
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360. Use copy-paste prompts that name **dataspace + populated DMO** so the agent does not re-ask routing questions.
 
 ---
 

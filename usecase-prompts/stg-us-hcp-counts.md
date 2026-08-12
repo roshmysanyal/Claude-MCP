@@ -40,7 +40,7 @@ profile data loads — that path yields 0.
 
 ## Demo-ready prompts (copy/paste)
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.  
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.  
 > Prefer prompts that name **STG-US + populated DMO** so the agent skips clarifying steps.  
 > Full bank: [../prompts/example-prompts.md](../prompts/example-prompts.md) · starters: [../prompts/chat-starters.md](../prompts/chat-starters.md).
 
@@ -49,7 +49,7 @@ profile data loads — that path yields 0.
 **Low-friction dual-report (recommended):**
 
 ```text
-In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Return the dual-report table: Data 360 count + Snowflake source count for stream STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. If Snowflake cannot be tallied, still show the Snowflake validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Return the dual-report table: Data 360 count + Snowflake source count for stream STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. If Snowflake cannot be tallied, still show the Snowflake validation SQL and mark PENDING. Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
 ```
 
 | # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |
@@ -70,7 +70,7 @@ In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened 
 ### IQVIA competitive prescribing (populated DMO: `stg_IQVIACompetitorSalesFact__dlm`)
 
 ```text
-In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING (include SQL if PENDING). Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING (include SQL if PENDING). Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
 ```
 
 | # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |

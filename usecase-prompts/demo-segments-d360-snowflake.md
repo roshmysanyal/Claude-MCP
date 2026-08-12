@@ -15,7 +15,7 @@ streams** — the only path that demo dual-validation end-to-end.
 **Snowflake columns** are illustrative (mapped from DMO names) — run `DESCRIBE TABLE` once and
 adjust if your warehouse uses different casing/names.
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.  
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.  
 > Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md) · FAQ bank: [../prompts/example-prompts.md](../prompts/example-prompts.md).
 
 ---

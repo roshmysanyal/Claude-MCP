@@ -9,11 +9,11 @@ Lightweight browser UI for POC demos. Two things only:
 
 **Run use case** renders the dual report inline: the Data 360 count from the latest
 agent-refreshed snapshot, plus the Snowflake source table and stream for that DMO marked
-**PENDING** (the browser cannot reach the warehouse) or **N/A** for CRM-sourced DMOs. To tally
-the Snowflake side, or to re-query Data 360 live, copy the prompt into Cursor and run it with
-the governed Skill.
+**PENDING** (the browser does not query Snowflake) or **N/A** for CRM-sourced DMOs. To re-query
+Data 360 live, copy the prompt into Cursor and run it with the governed Skill — the agent returns
+the live D360 count, Snowflake validation SQL, note, and Data 360 DMO / segment links.
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.  
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count is live from Data 360.  
 > Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md). Copied FAQ prompts name **dataspace + populated DMO** so Cursor skips clarifying questions.
 
 ## Open it

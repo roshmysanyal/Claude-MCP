@@ -21,10 +21,24 @@ Recommended first offers (one HCP Stage + one DTC):
 
 ## Every count answer (HCP and DTC)
 
-1. Dual-report **table**: Data 360 row + Snowflake source row + Delta.
-2. If Snowflake cannot be tallied, keep Count **PENDING**, show validation SQL + query output.
-3. Always include this note when Snowflake is PENDING (or when teaching dual-report):
+1. **Query Data 360 only** for the live count. Do **not** check Snowflake MCP connectivity,
+   call `mcp_auth` on Snowflake, or probe the Snowflake connector.
+2. Dual-report **table**: Data 360 row (live count) + Snowflake source row marked **PENDING**
+   (or **N/A** if the stream is not Snowflake-fed) + Delta **PENDING** / **N/A**.
+3. Always include the exact **Snowflake validation SQL** under the table (same filters / person
+   grain as the D360 count).
+4. Always include this note:
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 
-4. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email engagement audiences).
+5. Always include **links** under the table:
+   - **Data 360 DMO link** for each primary fact DMO in the count — resolve `id` with
+     `d360_dmo_get`, then
+     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view`
+     (swap host if the org context differs).
+   - **Data 360 segment link** when the ask is a segment create/update/status **or** a matching
+     MarketSegment exists:
+     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`.
+     For pure DMO/SQL counts with no MarketSegment, write
+     `Data 360 segment link: N/A — DMO count only (no MarketSegment)`.
+6. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email engagement audiences).

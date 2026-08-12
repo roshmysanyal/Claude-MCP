@@ -136,7 +136,7 @@ Only static currency-rate DMOs (e.g. `ppt_StaticCurrencyRates_*`). **No audience
 Sample prompts: [../prompts/example-prompts.md](../prompts/example-prompts.md).  
 Chat starters (dataspace + DMO named): [../prompts/chat-starters.md](../prompts/chat-starters.md).
 
-> **Note:** Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 
 ---
 

@@ -327,16 +327,17 @@ Required output:
 
 ```text
 Segment: <display name> (<API name>)
-**Data 360 segment link:** https://<org-lightning-host>/lightning/r/MarketSegment/<marketSegmentId>/view
+**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
+**Data 360 DMO link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view
 Segment member count: <N | PENDING>
 **Data 360 count:** <N>
-**Snowflake source count:** <M | PENDING | N/A>
-**Snowflake validation SQL:** <when M is not an integer>
-**Snowflake query output:** <when the Snowflake query did not return a count — never PII>
+**Snowflake source count:** PENDING | N/A
+**Snowflake validation SQL:** <exact SQL>
+> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 Publication status: <returned status>
 Activation status: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
 ```
 
-Always **tally Snowflake** for the segment's primary DMO/filters. Always include the **Data 360
-segment link** (Lightning `MarketSegment/<marketSegmentId>/view`) after create and on every
-segment count/status read.
+Always emit **Snowflake validation SQL** for the segment's primary DMO/filters (do **not** probe
+Snowflake MCP). Always include the **Data 360 segment link** and **Data 360 DMO link** after create
+and on every segment count/status read. Resolve DMO id with `d360_dmo_get`.
