@@ -34,6 +34,7 @@ additional illustrative marketer prompts to tune the Skill.
 - **HCP · Stage:** headquarter email opens/clicks/sends (all brands + Paxlovid/Abrysvo/Nurtec/Comirnaty), IQVIA Eliquis NRx.
 - **HCP · Dev / Prod:** CRM email openers/clickers/sends + HCP identity universe (Individuals, emails, party IDs).
 - **D2C · DTC:** brand-profile audiences, opted-in consumers, consent preferences, patient identity universe.
+- **D2C · DTC combined:** brand + opt-in, marketable (opt-in + email), Premarin opt-in + email, unified Nurtec opt-in — see *combined DMO* section.
 
 Full dual-validation SQL catalog: [../usecase-prompts/demo-segments-d360-snowflake.md](../usecase-prompts/demo-segments-d360-snowflake.md).
 DMOs with data in the Stage org (all dataspaces): [../reference/dmos-with-data-stage-org.md](../reference/dmos-with-data-stage-org.md).
@@ -108,6 +109,24 @@ Live Data 360 snapshots as of 2026-08-10.
 > Create-segment variants (tagged **D2C**): *"For patients, create a D2C segment of Premarin brand-profile consumers."* / *"For patients, create a D2C segment of opted-in consumers."*
 >
 > **Do not demo yet:** DTC email opens/clicks (`DTC_Email_Engagement__dlm` has rows but person linkage is test/partial).
+
+### Patient (D2C) · DTC — combined DMO segment counts (multi-object)
+
+These showcase **segment-style counts** that join 2–5 populated DTC DMOs. Live Data 360 snapshots as of 2026-08-11. Full SQL catalog: [../usecase-prompts/dtc-combined-segment-counts.md](../usecase-prompts/dtc-combined-segment-counts.md).
+
+| Tags | Use case (prompt) | DMOs combined | Approx. Data 360 count |
+| --- | --- | --- | ---: |
+| **D2C · combined** | For patients, how many Premarin brand-profile consumers are opted in? | BrandProfile + ContactPointConsent | 26,531 |
+| **D2C · combined** | For patients, how many Comirnaty brand-profile consumers are opted in? | BrandProfile + ContactPointConsent | 22,722 |
+| **D2C · combined** | For patients, how many Litfulo brand-profile consumers are opted in? | BrandProfile + ContactPointConsent | 8,334 |
+| **D2C · combined** | For patients, how many Paxlovid brand-profile consumers are opted in? | BrandProfile + ContactPointConsent | 2,510 |
+| **D2C · combined** | For patients, how many Nurtec brand-profile consumers are opted in (unified count)? | UnifiedIndividual + IdentityLink + Individual + BrandProfile + Consent | 1,493 |
+| **D2C · combined** | For patients, how many Litfulo brand-profile consumers have an email on file? | BrandProfile + ContactPointEmail | 8,413 |
+| **D2C · combined** | For patients, how many opted-in consumers have an email on file? | ContactPointConsent + ContactPointEmail | 170,455 |
+| **D2C · combined** | For patients, how many Premarin brand-profile consumers are opted in and have an email on file? | BrandProfile + Consent + ContactPointEmail | 26,529 |
+| **D2C · combined** | For patients, how many consumers have a Premarin consent preference set to IN? | ConsentPreference + ContactPointConsent | 27,443 |
+
+> Create-segment examples: *"For patients, create a D2C segment of opted-in Premarin brand-profile consumers."* / *"For patients, create a D2C segment of opted-in consumers with email on file."*
 
 ### Empty today — skip for live demos
 
@@ -198,6 +217,22 @@ Snowflake: `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_CONSENT_PREFERENCES` · Stream `D
 | **D2C · D360 and Snowflake count** | For patients, how many unified consumer profiles are there? | 191,534 |
 | **D2C · D360 and Snowflake count** | For patients, how many consumers have a contact-point email on file? | 176,989 |
 
+### Combined DMO segment counts (multi-object)
+
+Live as of 2026-08-11. SQL: [../usecase-prompts/dtc-combined-segment-counts.md](../usecase-prompts/dtc-combined-segment-counts.md).
+
+| Tags | Prompt | DMOs | Data 360 count |
+| --- | --- | --- | ---: |
+| **D2C · combined** | For patients, how many Premarin brand-profile consumers are opted in? | BrandProfile + Consent | 26,531 |
+| **D2C · combined** | For patients, how many Comirnaty brand-profile consumers are opted in? | BrandProfile + Consent | 22,722 |
+| **D2C · combined** | For patients, how many Litfulo brand-profile consumers are opted in? | BrandProfile + Consent | 8,334 |
+| **D2C · combined** | For patients, how many Paxlovid brand-profile consumers are opted in? | BrandProfile + Consent | 2,510 |
+| **D2C · combined** | For patients, how many Nurtec brand-profile consumers are opted in (unified count)? | Unified + Link + Individual + BrandProfile + Consent | 1,493 |
+| **D2C · combined** | For patients, how many Litfulo brand-profile consumers have an email on file? | BrandProfile + ContactPointEmail | 8,413 |
+| **D2C · combined** | For patients, how many opted-in consumers have an email on file? | Consent + ContactPointEmail | 170,455 |
+| **D2C · combined** | For patients, how many Premarin brand-profile consumers are opted in and have an email on file? | BrandProfile + Consent + ContactPointEmail | 26,529 |
+| **D2C · combined** | For patients, how many consumers have a Premarin consent preference set to IN? | ConsentPreference + Consent | 27,443 |
+
 **Expected behavior:** agent confirms **DTC** (patient) + dataspace, returns
 
 ```text
@@ -207,7 +242,7 @@ Snowflake: `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_CONSENT_PREFERENCES` · Stream `D
 ```
 
 > **Data caveat:** DTC **email engagement** (`DTC_Email_Engagement__dlm`) is **test/partial** at seed —
-> do not demo patient email opens/clicks yet. Use brand-profile, consent, and identity audiences above.
+> do not demo patient email opens/clicks yet. Use brand-profile, consent, identity, and **combined** audiences above.
 
 ---
 

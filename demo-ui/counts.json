@@ -47,6 +47,16 @@
     "dtc-consent-pref": { "d360": 341661, "status": "live" },
     "dtc-individual": { "d360": 193061, "status": "live" },
     "dtc-unified": { "d360": 191534, "status": "live" },
-    "dtc-cpe": { "d360": 176989, "status": "live" }
+    "dtc-cpe": { "d360": 176989, "status": "live" },
+
+    "dtc-premarin-optin": { "d360": 26531, "status": "live" },
+    "dtc-comirnaty-optin": { "d360": 22722, "status": "live" },
+    "dtc-litfulo-optin": { "d360": 8334, "status": "live" },
+    "dtc-paxlovid-optin": { "d360": 2510, "status": "live" },
+    "dtc-nurtec-optin-unified": { "d360": 1493, "status": "live" },
+    "dtc-litfulo-email": { "d360": 8413, "status": "live" },
+    "dtc-optin-email": { "d360": 170455, "status": "live" },
+    "dtc-premarin-optin-email": { "d360": 26529, "status": "live" },
+    "dtc-premarin-pref-in": { "d360": 27443, "status": "live" }
   }
 }
