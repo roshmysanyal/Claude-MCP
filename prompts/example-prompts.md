@@ -36,6 +36,7 @@ additional illustrative marketer prompts to tune the Skill.
 - **D2C · DTC:** brand-profile audiences, opted-in consumers, consent preferences, patient identity universe.
 
 Full dual-validation SQL catalog: [../usecase-prompts/demo-segments-d360-snowflake.md](../usecase-prompts/demo-segments-d360-snowflake.md).
+DMOs with data in the Stage org (all dataspaces): [../reference/dmos-with-data-stage-org.md](../reference/dmos-with-data-stage-org.md).
 
 ---
 

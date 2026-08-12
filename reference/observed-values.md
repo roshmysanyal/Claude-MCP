@@ -66,19 +66,25 @@ artifacts:
 
 <!-- Append entries as: DMO . field | org | seen | values (with counts) | notes -->
 
+> **DMOs with data (Stage org, all dataspaces):** see the live inventory in
+> [dmos-with-data-stage-org.md](dmos-with-data-stage-org.md) (seen `2026-08-11`).
+> That file is the quick demo checklist; this notebook keeps field-level literals.
+
 ### Development dataspace (DEV-US) — primary POC org
 
-Seeded via MCP `d360_query_sql` · seen `2026-08-06`.
+Seeded via MCP `d360_query_sql` · seen `2026-08-06`; **row counts refreshed** `2026-08-11`.
 
 #### Row counts (snapshot)
 
-| DMO | Rows |
+| DMO | Rows (2026-08-11) |
 |---|---|
-| `dev_Individual__dlm` | ~1,510,888 |
-| `dev_UnifiedIndividualRs1__dlm` | ~1,091,081 |
-| `dev_UnifiedLinkIndividualRs1__dlm` | ~1,510,888 |
-| `dev_ContactPointEmail__dlm` | ~999,600 |
-| `dev_EmailEngagement__dlm` | ~7,570,496 |
+| `dev_Individual__dlm` | 1,518,555 |
+| `dev_UnifiedIndividualRs1__dlm` | 1,098,700 |
+| `dev_UnifiedLinkIndividualRs1__dlm` | 1,518,555 |
+| `dev_ContactPointEmail__dlm` | 1,000,065 |
+| `dev_EmailEngagement__dlm` | 7,688,075 |
+| `dev_PartyIdentification__dlm` | 1,518,555 |
+| `dev_HeaderUnsubscribeBrand__dlm` | 35 |
 | `dev_ContactPointAddress__dlm` | **0** |
 | `dev_WebsiteEngagement__dlm` | **0** |
 | `dev_NBRxAggregated__dlm` | **0** |
@@ -141,14 +147,77 @@ Seeded via MCP `d360_query_sql` · seen `2026-08-06`.
 #### Empty DMOs (no value vocabulary)
 
 `ContactPointAddress`, `WebsiteEngagement`, `NBRxAggregated`, `ContactPointConsent`,
-`ConsentPreference`, `HcpSegmentation` — still **0 rows** as of `2026-08-07`.
+`ConsentPreference`, `HcpSegmentation` — still **0 rows** as of `2026-08-11`.
 Consent `sampleValues` (`IN`, `UNKNOWN`) remain from CIA reference segments only.
+
+---
+
+### STG_US dataspace — Stage (HCP)
+
+Seeded via MCP `d360_query_sql` · seen `2026-08-11`. Full inventory:
+[dmos-with-data-stage-org.md](dmos-with-data-stage-org.md).
+
+#### Row counts (snapshot)
+
+| DMO | Rows |
+|---|---|
+| `stg_IQVIACompetitorSalesFact__dlm` | 408,369,248 |
+| `stg_Headquarter_Email_Engagement__dlm` | 126,839,462 |
+| `stg_Individual__dlm` | **0** |
+| `stg_UnifiedIndividual__dlm` | **0** |
+| `stg_IndividualIdentityLink__dlm` | **0** |
+| `stg_ContactPointEmail__dlm` | **0** |
+| `stg_ContactPointAddress__dlm` | **0** |
+| `stg_ContactPointConsent__dlm` | **0** |
+| `stg_ConsentPreference__dlm` | **0** |
+| `stg_HcpSegmentation__dlm` | **0** |
+| `stg_LegalExclusion__dlm` | **0** |
+| `stg_PartyIdentification__dlm` | **0** |
+
+---
+
+### PRD_US dataspace — Prod (HCP)
+
+Seeded via MCP `d360_query_sql` · seen `2026-08-11`. Full inventory:
+[dmos-with-data-stage-org.md](dmos-with-data-stage-org.md).
+
+#### Row counts (snapshot)
+
+| DMO | Rows |
+|---|---|
+| `prd_EmailEngagement__dlm` | 14,373,560 |
+| `prd_Individual__dlm` | 1,518,555 |
+| `prd_UnifiedLinkIndividualPrd1__dlm` | 1,518,555 |
+| `prd_PartyIdentification__dlm` | 1,518,555 |
+| `prd_UnifiedIndividualPrd1__dlm` | 1,098,700 |
+| `prd_ContactPointEmail__dlm` | 1,000,065 |
+| `prd_HeaderUnsubscribeBrand__dlm` | 18,860 |
+| `prd_ContactPointAddress__dlm` | **0** |
+| `prd_WebsiteEngagement__dlm` | **0** |
+| `prd_NBRxAggregated__dlm` | **0** |
+| `prd_ContactPointConsent__dlm` | **0** |
+| `prd_ConsentPreference__dlm` | **0** |
+| `prd_HcpSegmentation__dlm` | **0** |
+| `prd_LegalExclusion__dlm` | **0** |
 
 ---
 
 ### DTC dataspace — patient / consumer
 
-Seeded via MCP `d360_query_sql` · seen `2026-08-07`.
+Seeded via MCP `d360_query_sql` · seen `2026-08-07`; **row counts refreshed** `2026-08-11`.
+
+#### Row counts (snapshot)
+
+| DMO | Rows (2026-08-11) |
+|---|---|
+| `DTC_ConsentPreference__dlm` | 341,751 |
+| `DTC_ContactPointConsent__dlm` | 274,582 |
+| `DTC_BrandProfile__dlm` | 194,559 |
+| `DTC_Individual__dlm` | 193,163 |
+| `DTC_UnifiedLinkIndividualDtc__dlm` | 193,163 |
+| `DTC_UnifiedIndividualDtc__dlm` | 191,635 |
+| `DTC_ContactPointEmail__dlm` | 177,033 |
+| `DTC_Email_Engagement__dlm` | 36,208 (test/partial person link — not demo-ready) |
 
 #### `DTC_ContactPointConsent__dlm`.`ConsentStatusId__c`
 
