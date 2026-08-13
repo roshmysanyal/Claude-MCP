@@ -181,9 +181,9 @@ entities:
     label: Unified Individual DTC — Segment Membership Latest
     status: verified
     desc: >-
-      Latest membership for segments SegmentOn Unified Individual DTC. Required
-      first layer for D2C builds: nest CIA Consumer Marketable Email
-      (Segment_Id__c LIKE '1sgWC00000009cn%') before other DMOs.
+      Latest membership for segments SegmentOn Unified Individual DTC. Optional
+      first layer for D2C builds: ASK whether to nest CIA Consumer Marketable Email
+      (Segment_Id__c LIKE '1sgWC00000009cn%') before other DMOs. Nest only if yes.
     grain: one row per (segment, member) in latest publish
     primary_key: Id__c
     count_key: Id__c
@@ -790,6 +790,66 @@ entities:
         pii: false
         desc: Most recent touch on this brand profile; recency filters.
 
+  # ---- Copay card ------------------------------------------------------------
+  CopayCard:
+    dmo: DTC_CopayCard__dlm
+    dataspace: DTC
+    dataspace_label: DTC
+    label: Copay card
+    status: VERIFY
+    data_note: >-
+      Harvested 2026-08-12 from live segments 1sgWC00000009ePYAQ (has-value +
+      test allowlist, SegmentOn Individual) and 1sgWC00000008jxYAA (has-value +
+      brand IN list + 36-month acquisition/recency, SegmentOn Unified). Snowflake
+      stream DTC_COPAY_CARD → CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_COPAY_CARDS.
+      Description "Copay and Voucher" on UAT scenario 3 has no voucher DMO —
+      trust includeCriteria (Copay Card only). Never return CardNumber__c (PII).
+    desc: >-
+      Copay-card rows linked to source Individual via IndividualId__c. Dual-capable
+      Snowflake-fed DMO. Use for "has a copay card" / brand / recency audiences.
+    primary_key: Id__c
+    grain: one row per copay card
+    fields:
+      id:
+        api_name: Id__c
+        label: Copay card ID
+        type: Text
+        status: verified
+        pii: false
+      individual_id:
+        api_name: IndividualId__c
+        label: Patient ID (link)
+        type: Text
+        status: verified
+        pii: false
+        desc: -> Individual.Id__c
+      card_number:
+        api_name: CardNumber__c
+        label: Card number
+        type: Text
+        status: verified
+        pii: true
+        desc: Has-value filters only. Never return literals.
+      brand:
+        api_name: Brand__c
+        label: Brand
+        type: Text
+        status: verified
+        pii: false
+        sampleValues: [NURTEC, XELJANZ, PAXLOVID, EUCRISA, LORBRENA]
+      acquisition_date:
+        api_name: AcquisitionDate__c
+        label: Acquisition date
+        type: DateTime
+        status: verified
+        pii: false
+      most_recent_date:
+        api_name: MostRecentDate__c
+        label: Most recent date
+        type: DateTime
+        status: verified
+        pii: false
+
   # ---- Email engagement events ----------------------------------------------
   EmailEngagement:
     dmo: DTC_Email_Engagement__dlm
@@ -969,6 +1029,15 @@ relationships:
     to_key: IndividualId__c
     cardinality: one_to_many
 
+  - name: individual_has_copay_card
+    status: verified
+    kind: attribute
+    from: Individual
+    to: CopayCard
+    from_key: Id__c
+    to_key: IndividualId__c
+    cardinality: one_to_many
+
   - name: individual_has_email_engagement
     status: VERIFY                 # only 2 individuals resolve — see EmailEngagement.data_note
     kind: engagement_event
@@ -989,12 +1058,12 @@ paths:
     hops: [unified_in_segment_membership]
     fan_out: true
     dedupe_on: UnifiedIndividual.Id__c
-    required_for: patient_d2c_segment_builds
+    required_for: patient_d2c_segment_builds_when_cia_yes
     filters:
       - "SegmentMembershipLatest.Segment_Id__c LIKE '1sgWC00000009cn%'"
     note: >-
-      Mandatory first hop for every consumer/patient/D2C segment create/update.
-      Then chain brand/consent/email paths.
+      ASK first. First hop for consumer/patient/D2C segment create/update only
+      when the user says yes to CIA. Then chain brand/consent/email paths.
 
   unified_individual_to_source:
     from: UnifiedIndividual
@@ -1028,6 +1097,13 @@ paths:
     from: UnifiedIndividual
     to: BrandProfile
     hops: [unified_to_identitylink, identitylink_to_individual, individual_has_brand_profile]
+    fan_out: true
+    dedupe_on: UnifiedIndividual.Id__c
+
+  unified_individual_to_copay_card:
+    from: UnifiedIndividual
+    to: CopayCard
+    hops: [unified_to_identitylink, identitylink_to_individual, individual_has_copay_card]
     fan_out: true
     dedupe_on: UnifiedIndividual.Id__c
 
@@ -1066,7 +1142,7 @@ journeys:
     #   WHERE bp."Brand__c" = '<brand>';
     caveats:
       - "Confirm the Brand__c literal set before filtering — values are VERIFY."
-      - "When BUILDING a segment for this journey, nest CIA Consumer Marketable Email first, then BrandProfile."
+      - "When BUILDING a segment for this journey, ASK whether to nest CIA Consumer Marketable Email first, then BrandProfile if yes."
 
   patient_email_openers_last_90_days:
     intent: "How many patients opened an email in the last 90 days?"
@@ -1097,14 +1173,14 @@ journeys:
     also_join: unified_individual_to_consent
     preferred_base: DTC_CIA_Consumer_Marketable_Email
     filters:
-      - "FIRST: nest CIA Consumer Marketable Email via SegmentMembershipLatest (Segment_Id__c LIKE '1sgWC00000009cn%')"
+      - "ASK first: nest CIA Consumer Marketable Email via SegmentMembershipLatest (Segment_Id__c LIKE '1sgWC00000009cn%') only if the user says yes"
       - "ContactPointEmail.is_valid = true"
       - "ContactPointEmail.email_domain_restricted = false"
       - "ContactPointConsent.consent_status = '<opt-in-literal>'"
       - "UnifiedIndividual.retired = false"
     count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
     caveats:
-      - "For segment builds, ALWAYS nest CIA Consumer Marketable Email membership first, then other DMOs."
+      - "For segment builds, ASK whether to nest CIA Consumer Marketable Email membership first; nest only if yes."
       - "Confirm the DTC consent-status literal — do not reuse the HCP 'IN'/'UNKNOWN' values."
       - "Add EighteenYearsOld__c / LivesInMassachusetts__c gates if the brand requires them."
 
@@ -1119,19 +1195,19 @@ journeys:
       - unified_individual_to_consent_preference
       - unified_individual_to_brand_profile
     filters:
-      - "CIA Consumer Marketable Email membership (Skill base)"
+      - "CIA Consumer Marketable Email membership (ask first; nest only if yes)"
       - "ConsentPreference: PreferenceName=ALL AND PreferenceType IN (Brand,Topic) AND PreferenceValue=IN"
       - "BrandProfile: CustomerType IN (Caregiver,Prospect,Patient) OR OnPrescriptionDrugProgram OR OnMedication OR AcquisitionDate last 24 months"
     count: "COUNT(DISTINCT UnifiedIndividual.count_key)"
     caveats:
       - "Canonical multi-DMO container example — see creating-segments.md worked example."
-      - "Live UI segment omits CIA; Skill creates must still prepend CIA."
+      - "Live UI segment omits CIA; Skill creates ASK whether to prepend CIA."
       - "Description said 3 years; includeCriteria uses 24 months / lookback P2Y."
 
 # -----------------------------------------------------------------------------
 # REFERENCE SEGMENTS  — CIA / marketable base (DTC)
 # -----------------------------------------------------------------------------
-# Harvested 2026-08-12. Every patient/D2C segment create MUST nest this first.
+# Harvested 2026-08-12. Every patient/D2C segment create ASKS whether to nest this first.
 # -----------------------------------------------------------------------------
 reference_segments:
 
@@ -1145,9 +1221,10 @@ reference_segments:
     last_member_count: 190926
     segment_type: UI
     intent: >-
-      Mandatory base for every consumer/patient/D2C/DTC segment. US targetable
-      consumers opted in for email marketing. Nest via Segment Membership Latest
-      DMO before Brand Profile, Consent Preference, or any other use-case DMO.
+      Optional base for consumer/patient/D2C/DTC segments. ASK before nesting.
+      US targetable consumers opted in for email marketing. If the user says yes,
+      nest via Segment Membership Latest DMO before Brand Profile, Consent
+      Preference, or any other use-case DMO. If no, omit this nest.
     membership_latest_dmo: DTC_UnifiedIndividualDtc_SM_1780343389__dlm
     membership_history_dmo: DTC_UnifiedIndividualDtc_SMH_178034340__dlm
     membership_fields:
@@ -1198,7 +1275,8 @@ reference_segments:
           - "AcquisitionDate__c in last 24 months"
         path: Unified → Link → Individual → BrandProfile
     skill_delta: >-
-      When rebuilding or cloning this for Skill creates, prepend CIA Consumer
-      Marketable Email membership as container 0. Description said "3 years";
-      live filter is 24 months — prefer includeCriteria.
-    note: Does not nest CIA in the live UI definition (pre-Skill rule).
+      When rebuilding or cloning this for Skill creates, ASK whether to prepend
+      CIA Consumer Marketable Email membership as container 0. Description said
+      "3 years"; live filter is 24 months — prefer includeCriteria. Publish
+      lookback is always P2Y.
+    note: Does not nest CIA in the live UI definition. Skill asks; does not auto-prepend.

@@ -46,8 +46,7 @@ filtered out of the FAQ list automatically.
 | Copy a prompt for Cursor | |
 
 For live counts and segment creation: **Copy prompt** → paste into Cursor with the governed
-Skill + `data360` MCP. D2C create prompts nest **CIA Consumer Marketable Email** first, then the
-brand / consent DMOs.
+Skill + `data360` MCP. For D2C create prompts, **ask** whether to nest **CIA Consumer Marketable Email** first; nest only if yes. Every segment is published with lookback **`P2Y`**.
 
 Related references:
 

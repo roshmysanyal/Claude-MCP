@@ -31,17 +31,28 @@ Full catalog: [dataModel-index.yaml](dataModel-index.yaml).
 - Put the dataspace on the segment API payload / MCP `execute` params — do not leave it unspecified
   (unspecified often resolves to `default`, which is the wrong model for this POC).
 - Never build one segment across both audiences/dataspaces, and never reuse the other model's field names.
-- **Patient / D2C / DTC:** always nest **CIA Consumer Marketable Email** first (Segment Membership
-  Latest DMO), then add other DMOs — see *CIA Consumer Marketable Email base* below. Do not
-  SegmentOn `DTC_Individual__dlm` for activatable D2C audiences.
+- **Patient / D2C / DTC:** **ask** whether to include **CIA Consumer Marketable Email** before
+  nesting it — do not nest or skip silently. If yes, nest CIA first (Segment Membership Latest
+  DMO), then add other DMOs — see *CIA Consumer Marketable Email base* below. If no, omit CIA.
+  Do not SegmentOn `DTC_Individual__dlm` for activatable D2C audiences.
+- **Lookback / publish:** every create, update-before-publish, and publish uses
+  `lookbackPeriod: "P2Y"` (2 years). Never `P3Y` or `P90D`.
 - **Counts in `STG_US` / `PRD_US`:** return the number only — never PII sample rows (same as
   Development). Segment membership projects opaque SegmentOn PKs only. See Skill *PII-safe counts*.
 
 ---
 
-## CIA Consumer Marketable Email base (patient / D2C — required)
+## CIA Consumer Marketable Email base (patient / D2C — ask, then nest if yes)
 
-Every consumer/patient/D2C/DTC segment must start from this population, then add use-case DMOs.
+For every consumer/patient/D2C/DTC **create or update**, ask first:
+
+> Include CIA Consumer Marketable Email as the first membership filter?
+
+Wait for **yes** or **no**. Do not nest CIA and do not omit it without that answer.
+
+If **no**, skip this nest; still SegmentOn Unified Individual, then add use-case DMOs.
+
+If **yes**, nest this population first, then add use-case DMOs:
 
 | | Value |
 |---|---|
@@ -52,7 +63,7 @@ Every consumer/patient/D2C/DTC segment must start from this population, then add
 | Membership Latest DMO | `DTC_UnifiedIndividualDtc_SM_1780343389__dlm` |
 | Membership keys | `Id__c` → Unified Individual PK; `Segment_Id__c` → segment id (15-char form observed in org) |
 
-**Order of filters in membership SQL:**
+**Order of filters in membership SQL when CIA = yes:**
 
 1. CIA membership nest (`Segment_Id__c LIKE '1sgWC00000009cn%'`)
 2. Then Brand Profile / Consent / Preference / Email / other DMOs via identity-link paths
@@ -70,9 +81,10 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
   );
 ```
 
-If the CIA nest returns 0 members while CIA's published `lastSegmentMemberCount` is non-zero, stop
-and tell the user — do not drop the CIA layer silently. Only use a temporary marketable
-email+consent fallback if the user explicitly approves it.
+If the user said **yes** and the CIA nest returns 0 members while CIA's published
+`lastSegmentMemberCount` is non-zero, stop and tell the user — do not drop the CIA layer
+silently. Only use a temporary marketable email+consent fallback if the user explicitly
+approves it.
 
 ---
 
@@ -206,7 +218,7 @@ contained). Build each to its own rules; don't reuse one for the other.
 | `marketSegmentId` | `1sgWC00000008iLYAQ` |
 | Dataspace / type | `DTC` / `UI` |
 | SegmentOn | `DTC_UnifiedIndividualDtc__dlm` |
-| Members | ~2,504 |
+| Members | **2,504** published (`NoRefresh`); live SQL matching `includeCriteria` is larger — re-count before rebuild |
 | Lookback | `P2Y` |
 
 **Use case (description):** Target Prospects, Caregivers, or Patients on medication or a
@@ -236,12 +248,14 @@ AND
 
 1. Pick **SegmentOn** (DTC → Unified Individual).
 2. Split the ask into **DMO containers** (one related object per existence check).
-3. **AND** containers together; use **AND/OR inside** each container to match the ask.
-4. For **new** D2C builds under this Skill: insert **CIA Consumer Marketable Email** membership as
-   container 0, then the use-case containers (this UAT reference predates that Skill rule).
+3. **AND or OR containers together** to match the ask (AND = intersection, OR = union); use
+   **AND/OR inside** each container for co-required vs alternative attributes.
+4. For **new** D2C builds: **ask CIA**. If yes, insert **CIA Consumer Marketable Email** membership
+   as container 0, then the use-case containers. If no, omit CIA (this UAT reference has no CIA).
 5. Emit **DBT membership SQL** as nested `IN` subqueries (UI `count ≥ 1` ≡ existence subquery).
+6. Publish with **`lookbackPeriod: P2Y`** only.
 
-**DBT-shaped membership (Skill create path — CIA first + UAT containers):**
+**DBT-shaped membership (Skill create path — CIA = yes + UAT containers):**
 
 ```sql
 SELECT DTC_UnifiedIndividualDtc__dlm.Id__c
@@ -282,12 +296,314 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
 
 ---
 
+## Worked example — copay card (natural language → one container)
+
+**Learn from (UI):**
+[DTC Copay Card Segment On Individual](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000009ePYAQ)
+(`DTC_DTC_Copay_Card_Segment_On_Individual`, `1sgWC00000009ePYAQ`).
+
+This is the **single related-DMO** pattern. The live UI is a QA named-list (SegmentOn Individual,
+6 members, no CIA, plus a test allowlist of customer keys). **Do not paste those customer IDs or
+card numbers into answers** (PII). A Skill rebuild from natural language uses Unified + **ask CIA**
++ Copay Card has-value, and only keeps an allowlist if the user explicitly wants a test slice.
+
+### Natural language
+
+> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
+> on file.
+
+### Step 1 — restated bullets
+
+- Audience: patient / D2C → dataspace `DTC`.
+- Has at least one Copay Card row.
+- That row has `CardNumber__c` populated (`has value` / `IS NOT NULL` and not empty).
+
+### Step 2 — DMO containers
+
+| # | UI container | Related DMO | Inside the container | Between containers |
+| --- | --- | --- | --- | --- |
+| 0 | CIA Consumer Marketable Email (**only if the user said yes**) | `DTC_UnifiedIndividualDtc_SM_1780343389__dlm` | `Segment_Id__c LIKE '1sgWC00000009cn%'` | AND |
+| 1 | Copay Card count ≥ 1 | `DTC_CopayCard__dlm` | `CardNumber__c` has value | AND |
+
+**Identity path (Unified SegmentOn):**
+`DTC_UnifiedIndividualDtc__dlm.Id__c` → `DTC_UnifiedLinkIndividualDtc__dlm` →
+`DTC_Individual__dlm.Id__c` → `DTC_CopayCard__dlm.IndividualId__c`.
+
+The UI reference SegmentOn is `DTC_Individual__dlm` with a direct
+`Individual.Id__c → CopayCard.IndividualId__c` path. Skill rebuilds still use Unified.
+
+### Step 3 — count SQL (Recipe A)
+
+```sql
+SELECT COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Id__c
+    FROM DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    WHERE DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Segment_Id__c LIKE '1sgWC00000009cn%'
+  )
+  AND DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+    FROM DTC_UnifiedLinkIndividualDtc__dlm
+    WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+      SELECT DTC_CopayCard__dlm.IndividualId__c
+      FROM DTC_CopayCard__dlm
+      WHERE DTC_CopayCard__dlm.CardNumber__c IS NOT NULL
+        AND DTC_CopayCard__dlm.CardNumber__c <> ''
+    )
+  );
+```
+
+### Step 4 — membership SQL (Recipe B)
+
+Same `WHERE` as the count. Top-level select is **only** `DTC_UnifiedIndividualDtc__dlm.Id__c`.
+No `COUNT`, no `DISTINCT`, no aliases.
+
+If the user asks to keep the UI test slice, add `AND DTC_CopayCard__dlm.IndividualId__c IN (…)`
+inside the Copay Card subquery — only after they supply the keys; never copy keys from the
+reference segment into chat.
+
+---
+
+## Worked example — copay + brand + recency (UAT scenario 3)
+
+**Learn from (UI):**
+[UAT DTC-Test Scenario3](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008jxYAA)
+(`DTC_UAT_DTC_Test_Scenario3`, `1sgWC00000008jxYAA`).
+
+This is a **single Copay Card container on Unified Individual** with AND inside: has-value + brand
+IN list + two 36-month date filters. Contrast with `1sgWC00000009ePYAQ` (SegmentOn Individual,
+allowlist, has-value only).
+
+| | |
+|---|---|
+| Display / API | `UAT DTC-Test Scenario3` / `DTC_UAT_DTC_Test_Scenario3` |
+| `marketSegmentId` | `1sgWC00000008jxYAA` |
+| Dataspace / type | `DTC` / `UI` |
+| SegmentOn | `DTC_UnifiedIndividualDtc__dlm` |
+| Published members | **36** (`NoRefresh`) |
+| Lookback metadata | `P90D` — **do not use**. Keep 36-month SQL filters; **publish lookback is always `P2Y`** (never `P3Y`) |
+| CIA | **none** in the UI (Skill rebuild **asks**, then nests only if yes) |
+
+**Description (marketing):** Copay and Voucher.
+
+**How the org actually built it** (`includeCriteria` — no voucher DMO):
+
+```text
+SegmentOn: Unified Individual DTC
+AND
+  [Container 1] CopayCard  count ≥ 1
+      CardNumber__c has value
+      AND AcquisitionDate__c in the last 36 months
+      AND MostRecentDate__c in the last 36 months
+      AND Brand__c IN ('NURTEC', 'XELJANZ', 'PAXLOVID', 'EUCRISA', 'LORBRENA')
+      path: Unified → IdentityLink → Individual → CopayCard.IndividualId__c
+```
+
+**Do not paste card numbers** (PII). Do not invent a voucher container from the description.
+
+### Natural language
+
+> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
+> on file for NURTEC, XELJANZ, PAXLOVID, EUCRISA, or LORBRENA, acquired in the last 36 months,
+> with activity in the last 36 months.
+
+### Count SQL (Recipe A, UI-equivalent — no CIA)
+
+```sql
+SELECT COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+    FROM DTC_UnifiedLinkIndividualDtc__dlm
+    WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+      SELECT DTC_CopayCard__dlm.IndividualId__c
+      FROM DTC_CopayCard__dlm
+      WHERE DTC_CopayCard__dlm.CardNumber__c IS NOT NULL
+        AND DTC_CopayCard__dlm.AcquisitionDate__c >= CURRENT_DATE - INTERVAL '36 months'
+        AND DTC_CopayCard__dlm.MostRecentDate__c >= CURRENT_DATE - INTERVAL '36 months'
+        AND DTC_CopayCard__dlm.Brand__c IN (
+          'NURTEC', 'XELJANZ', 'PAXLOVID', 'EUCRISA', 'LORBRENA'
+        )
+    )
+  );
+```
+
+Skill rebuild **asks CIA** and nests it only if yes. Live UI-equivalent count on 2026-08-12 was **312**. Publish with **`P2Y`**.
+
+Snowflake: stream `DTC_COPAY_CARD` / `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_COPAY_CARDS`.
+
+---
+
+## Worked example — email engagement OR (two DMOs)
+
+**Learn from (UI):**
+[UAT DTC Test scenario 4](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008lZYAQ)
+(`DTC_UAT_DTC_Test_scenario_4`, `1sgWC00000008lZYAQ`) — original.
+Clone with the **same** `includeCriteria`:
+[UAT DTC Test scenario 4 - Mariana](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008vFYAQ)
+(`DTC_UAT_DTC_Test_scenario_4_Mariana`, `1sgWC00000008vFYAQ`).
+
+This is the **top-level OR** pattern: the person qualifies if they match **either** related DMO
+(union), not both. Contrast with UAT RX (AND between Consent Preference and Brand Profile).
+
+| | |
+|---|---|
+| Display / API | `UAT DTC Test scenario 4` / `DTC_UAT_DTC_Test_scenario_4` (Mariana clone: `DTC_UAT_DTC_Test_scenario_4_Mariana`) |
+| `marketSegmentId` | `1sgWC00000008lZYAQ` (clone `1sgWC00000008vFYAQ`) |
+| Dataspace / type | `DTC` / `UI` |
+| SegmentOn | `DTC_UnifiedIndividualDtc__dlm` |
+| Published members | **39** (`NoRefresh`, last modified 2026-06-03 — stale vs live SQL) |
+| Lookback metadata | `P90D` — **do not use**; HQ filter is 1 year |
+| CIA | **none** in the UI (Skill rebuild **asks**, then nests only if yes) |
+
+**Description (marketing):** Target Patients/Consumers with SFMC email interactions (currently 0)
+and historical email engagement.
+
+**How the org actually built it** (`includeCriteria` — trust this over the description and over
+`lookbackPeriod`):
+
+```text
+SegmentOn: Unified Individual DTC
+OR
+  [Container 1] Email Engagement (SFMC)  count ≥ 1
+      EngagementChannelAction__c IN ('Open', 'Click')
+      AND MarketJourneyName__c has value
+      path: Unified → IdentityLink → Individual → Email_Engagement.Individual__c
+OR
+  [Container 2] Headquarter Email Engagement  count ≥ 1
+      EngagementDateTime__c in the last 1 year
+      AND EngagementChannelAction__c IN ('Click Email', 'Open Email', 'Send Email', 'Email Delivered')
+      path: Unified → IdentityLink → Individual → HQ.IndividualId__c
+```
+
+**Do not mix DMO vocabularies:** SFMC actions are `Open` / `Click`; HQ actions are `Open Email` /
+`Click Email` / `Send Email` / `Email Delivered`. Person link is `Individual__c` on SFMC and
+`IndividualId__c` on HQ. Do not copy HCP `OPENED`.
+
+**Live vs published:** SFMC container resolves to **0** people (DMO not audience-ready — see
+[dataModel-dtc.yaml](dataModel-dtc.yaml) `EmailEngagement.data_note`). HQ through Unified is the
+only contributor. Published **39** is a frozen `NoRefresh` snapshot; re-count with Recipe A before
+rebuilding.
+
+### Natural language
+
+> For patients in DTC, build a D2C segment of consumers who opened or clicked an SFMC journey
+> email, or had a headquarter email send / open / click / delivered in the last year.
+
+### Step 1 — restated bullets
+
+- Audience: patient / D2C → dataspace `DTC`.
+- Qualify via **either** (union):
+  - SFMC email: action Open or Click, and journey name filled in; **or**
+  - HQ email: send / open / click / delivered in the last 1 year.
+
+### Step 2 — DMO containers
+
+| # | UI container | Related DMO | Inside the container | Between containers |
+| --- | --- | --- | --- | --- |
+| 0 | CIA Consumer Marketable Email (**only if the user said yes**) | `DTC_UnifiedIndividualDtc_SM_1780343389__dlm` | `Segment_Id__c LIKE '1sgWC00000009cn%'` | **AND** with the OR-group |
+| 1 | Email Engagement count ≥ 1 | `DTC_Email_Engagement__dlm` | action IN (`Open`,`Click`) AND `MarketJourneyName__c` has value | **OR** with container 2 |
+| 2 | HQ Email Engagement count ≥ 1 | `DTC_HeadquarterEmailEngagement__dlm` | last 1 year AND action IN (`Click Email`,`Open Email`,`Send Email`,`Email Delivered`) | **OR** with container 1 |
+
+SQL shape: `(optional CIA AND) (SFMC OR HQ)`.
+
+### Step 3 — count SQL (Recipe A)
+
+```sql
+SELECT COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)
+FROM DTC_UnifiedIndividualDtc__dlm
+WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+    SELECT DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Id__c
+    FROM DTC_UnifiedIndividualDtc_SM_1780343389__dlm
+    WHERE DTC_UnifiedIndividualDtc_SM_1780343389__dlm.Segment_Id__c LIKE '1sgWC00000009cn%'
+  )
+  AND (
+    DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+      SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+      FROM DTC_UnifiedLinkIndividualDtc__dlm
+      WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+        SELECT DTC_Email_Engagement__dlm.Individual__c
+        FROM DTC_Email_Engagement__dlm
+        WHERE DTC_Email_Engagement__dlm.EngagementChannelAction__c IN ('Open', 'Click')
+          AND DTC_Email_Engagement__dlm.MarketJourneyName__c IS NOT NULL
+          AND DTC_Email_Engagement__dlm.MarketJourneyName__c <> ''
+      )
+    )
+    OR DTC_UnifiedIndividualDtc__dlm.Id__c IN (
+      SELECT DTC_UnifiedLinkIndividualDtc__dlm.UnifiedRecordId__c
+      FROM DTC_UnifiedLinkIndividualDtc__dlm
+      WHERE DTC_UnifiedLinkIndividualDtc__dlm.SourceRecordId__c IN (
+        SELECT DTC_HeadquarterEmailEngagement__dlm.IndividualId__c
+        FROM DTC_HeadquarterEmailEngagement__dlm
+        WHERE DTC_HeadquarterEmailEngagement__dlm.EngagementDateTime__c >= CURRENT_TIMESTAMP() - INTERVAL '1' YEAR
+          AND DTC_HeadquarterEmailEngagement__dlm.EngagementChannelAction__c IN (
+            'Click Email', 'Open Email', 'Send Email', 'Email Delivered'
+          )
+      )
+    )
+  );
+```
+
+Without CIA (UI-equivalent live count), drop the first `IN` nest. HQ-only through Unified was
+**2,987** on 2026-08-12; SFMC nest was **0**.
+
+### Step 4 — membership SQL (Recipe B)
+
+Same `WHERE` as the count. Top-level select is **only** `DTC_UnifiedIndividualDtc__dlm.Id__c`.
+No `COUNT`, no `DISTINCT`, no aliases.
+
+Snowflake dual-report: HQ → stream `DTC_OCL_HEADQUARTER_EMAIL` /
+`CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OCL_HEADQUARTER_EMAIL` (PENDING). SFMC Email Engagement is
+**N/A** (not Snowflake-fed).
+
+---
+
+## Naming + lookback (required on every create)
+
+| Field | Rule |
+| --- | --- |
+| `displayName` | Must **end with ` test`** (space + `test`). Example: `DEMO_D2C_Premarin_Opted_In test`. |
+| `developerName` / API name | Must **end with `_test`**. Example: `DEMO_D2C_Premarin_Opted_In_test`. |
+| `lookbackPeriod` | Always **`P2Y`** (2 years) on create, update, and **every publish**. Never `P3Y` or `P90D`. |
+| Double-append | If the name already ends with `test` / `_test`, do not append again. |
+
+`d360_segment_publish` takes only `segmentId` — set `lookbackPeriod: "P2Y"` on create/update
+**before** publish so the published segment carries the 2-year window. Date filters in SQL
+(e.g. 36 months) stay as written; lookback metadata is still `P2Y`.
+
+---
+
+## Publish a segment (Recipe P)
+
+Create does **not** publish. After the user confirms, evaluate on demand:
+
+1. Resolve **`marketSegmentId`** with `d360_segment_get` / `d360_segment_get_by_id` (18-char `1sg…`).
+   Do **not** pass `segmentApiName` to publish.
+2. Confirm `lookbackPeriod` on the definition is **`P2Y`**. Update to `P2Y` before publish if it is
+   not. Never publish another window.
+3. `execute` `d360_segment_publish`:
+
+```json
+{"dataspace": "DTC", "segmentId": "1sgWC0000000AfJYAU"}
+```
+
+4. Poll `d360_segment_get` through `PROCESSING` / `COUNTING` until `ACTIVE` or `ERROR`.
+5. Dual-report published `lastSegmentMemberCount` vs Recipe A. Do not activate from this step.
+
+DBT create may already land `ACTIVE` after the first count job. Still publish when the user asks
+for a fresh snapshot (`NoRefresh` membership goes stale).
+
+---
+
 ## Before you submit a segment — checklist
 
 - [ ] Audience routed to the right model, and the dataspace matches it — **`Development` (DEV-US)**
       for HCP, **`DTC`** for patient — confirmed with the user / payload (not `default`).
-- [ ] **Patient/D2C only:** **CIA Consumer Marketable Email** membership DMO is the **first** filter;
-      SegmentOn is `DTC_UnifiedIndividualDtc__dlm`; then other DMOs are added.
+- [ ] **Name ends with `test`:** `displayName` …` test`, `developerName` …`_test`.
+- [ ] **`lookbackPeriod` is `P2Y`** (2 years) on the create/update payload before **every** publish.
+- [ ] **Patient/D2C only:** asked whether to include **CIA Consumer Marketable Email**; nested it
+      first only if yes; omitted it only if no. SegmentOn is `DTC_UnifiedIndividualDtc__dlm`.
 - [ ] `SegmentOn` chosen and it's a **profile table**; top-level select projects **only its PK**.
 - [ ] No aggregation, no `SELECT *`, no `CASE`, no aliases.
 - [ ] Every column fully qualified; every subquery in `WHERE` and single-column.
@@ -295,8 +611,9 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
       [dataModel-dev.yaml](dataModel-dev.yaml) / [dataModel-dtc.yaml](dataModel-dtc.yaml)
       (unified ↔ source routed via the identity-link DMO).
 - [ ] Key qualifiers projected + grouped if the PK has them.
-- [ ] Filters translated **from the plain-English description** (Recipe B), not copied from the
-      reference segment's raw JSON.
+- [ ] Filters translated **from the plain-English description** (Recipe B Entry point 0: restated
+      bullets → DMO containers → AND **or OR** between containers / AND-OR inside), not copied from
+      the reference segment's raw JSON.
 - [ ] Membership sanity-checked against the **count** for the same criteria (Recipe A) before publish.
 
 ---

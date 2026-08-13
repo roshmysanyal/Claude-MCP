@@ -41,7 +41,10 @@ Filters:
 - <same filters as the count>
 
 Use DBT segment SQL that projects ONLY the SegmentOn primary key (no COUNT, no PII).
+Name ends with test (`displayName` … test, API …_test). lookbackPeriod: P2Y.
+If this is DTC/patient: ask first whether to include CIA Consumer Marketable Email; nest it only if yes.
 Show the SQL before create. Then create with publishSchedule NoRefresh and confirm.
+Publish only after confirmation, still with lookback P2Y.
 After create, pull the segment count and compare to the Recipe A count for the same filters.
 ```
 
@@ -91,4 +94,6 @@ WHERE i."Id__c" IN (
 - Never submit `COUNT(DISTINCT …)` as segment SQL.
 - Never project emails, names, or other PII in segment SQL.
 - Confirm dataspace before create (never silent `default`).
+- DTC / patient: **ask** whether to nest CIA Consumer Marketable Email; nest only if yes.
+- Every create and publish uses `lookbackPeriod: P2Y` (never `P3Y` or `P90D`).
 - Stage **D360 and Snowflake count** demos: lead with count dual-report; treat create as “SQL ready / members pending profile.”

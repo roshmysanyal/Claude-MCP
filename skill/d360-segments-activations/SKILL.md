@@ -17,13 +17,16 @@ description: >-
   Snowflake MCP connectivity or run the Snowflake connector. Always provide the Snowflake
   validation SQL below the table, mark Snowflake **PENDING** (or **N/A** if not Snowflake-fed),
   and include the note that Snowflake is not queried via MCP. This table is required for both HCP
-  and DTC, on pull (count/status) and push (create/update). Under every count table include the
-  **Data 360 DMO link(s)** (via `d360_dmo_get` → `MktDataModelObject/<id>/view`) and the
-  **Data 360 segment link** (MarketSegment Lightning URL when a segment applies; otherwise
-  N/A — DMO count only). Count responses never include PII. For
-  patient/consumer/D2C/DTC segment creates and updates, always nest CIA Consumer
-  Marketable Email (Segment Membership Latest DMO) first on DTC_UnifiedIndividualDtc__dlm,
-  then add the other required DMOs. For "within N miles of ZIP/landmark" asks, precompute
+  and DTC, on pull (count/status) and push (create/update). Under every count **and** create table
+  always include the **Data 360 DMO link(s)** (`d360_dmo_get` → `MktDataModelObject/<id>/view`)
+  **and** the **Data 360 segment link** (`MarketSegment/<id>/view`) — never omit the segment line
+  on a Recipe A count. Count responses never include PII. For
+  patient/consumer/D2C/DTC segment creates and updates, **always ask** whether to
+  include CIA Consumer Marketable Email before nesting it — do not nest or skip
+  silently. If the user says yes, nest CIA first on DTC_UnifiedIndividualDtc__dlm,
+  then add the other required DMOs. Every segment create and publish uses
+  lookbackPeriod P2Y (2 years) — never a different window. Append "test" to the
+  segment name on create. For "within N miles of ZIP/landmark" asks, precompute
   ZIP centroids into an IN list (see ZIP-radius section) — do not invent in-SQL Haversine.
 ---
 
@@ -81,12 +84,13 @@ entity model and operations below — no brand allowlist.
   DTC / D2C** use case routes to **`DTC`** ([dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml)).
   If audience is ambiguous, ask "**HCP (US customer) or patient (DTC)?**" together with which
   dataspace, then load the matching YAML. Never build one request across both audiences.
-- **Patient / consumer / D2C / DTC segments — CIA base layer (required):** Whenever you **build**
-  (Recipe B) or **update** (Recipe U) a patient/consumer/D2C/DTC segment, you **must** include the
-  **CIA Consumer Marketable Email** population as the **first** membership filter, then add the
-  other DMOs the use case needs (Brand Profile, Consent Preference, etc.). Do not create a D2C
-  segment that skips this base. Details: *CIA Consumer Marketable Email base (D2C)* under Recipe B
-  and [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml) `reference_segments`.
+- **Patient / consumer / D2C / DTC segments — ASK CIA first:** Whenever you **build**
+  (Recipe B) or **update** (Recipe U) a patient/consumer/D2C/DTC segment, **ask before writing:**
+  *Include CIA Consumer Marketable Email as the first membership filter?* Do **not** nest CIA
+  silently and do **not** skip it silently. If **yes**, nest CIA first (Segment Membership Latest
+  DMO on `DTC_UnifiedIndividualDtc__dlm`), then the other DMOs. If **no**, omit the CIA nest;
+  still SegmentOn Unified Individual. Details: *CIA Consumer Marketable Email base (D2C)* under
+  Recipe B.
 - **Always dual-report against Snowflake SQL (count / create / update / status) — without probing
   Snowflake MCP:** Any operation that produces a member count — a Recipe A count, the count behind
   a **create** or **update**, or a **segment status** read — must map to the **Snowflake
@@ -99,15 +103,32 @@ entity model and operations below — no brand allowlist.
   - Always include **Snowflake validation SQL** (same filters / person grain) under the table.
   - Always include the note: *Snowflake is not queried via MCP. Run the validation SQL in
     Snowflake to complete the dual report; the Data 360 count above is live from Data 360.*
-- **Always return Data 360 links with every count:**
+- **Always return Data 360 DMO + segment links — count (pull) and create (push):**
   - **DMO link(s):** for each primary fact DMO, call `d360_dmo_get` and emit
     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view`
     (use the live org host when context differs).
-  - **Segment link:** when the ask is an existing segment's count **or** after create/update,
-    emit `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`
-    plus display/API name. For pure DMO/SQL counts with no MarketSegment, emit
-    `Data 360 segment link: N/A — DMO count only (no MarketSegment)`. Never finish a count without
-    the DMO link line(s).
+  - **Segment link (required on every count and every create):** emit
+    `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`
+    plus display/API name.
+    - **Create / update / status (Recipe B / U / S):** the segment you just created, updated, or
+      read — never finish without this URL.
+    - **Count (Recipe A):** look up a matching existing MarketSegment in the same dataspace
+      (`d360_segment_list` / `d360_segment_get`, plus known catalog e.g. `DEMO_D2C_Premarin_Opted_In`).
+      If one matches the population, use its Lightning URL. If none matches, still emit
+      `Data 360 segment link: N/A — no MarketSegment for this count yet` **and** the org segment
+      list `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list`
+      so the user can open Data 360. Never drop the segment-link line from a count answer.
+- **Segment create naming + lookback (required):** On every **new** segment create (Recipe B):
+  - **Name must end with `test`:** `displayName` ends with ` test` (space + test); `developerName`
+    / API name ends with `_test`. If the proposed name already ends with `test` / `_test`, do not
+    double-append. Examples: `DEMO_D2C_Premarin_Opted_In test` /
+    `DEMO_D2C_Premarin_Opted_In_test`.
+  - **Lookback is always 2 years:** set `lookbackPeriod: "P2Y"` on `d360_segment_create` and
+    keep `P2Y` on update. **Every publish (Recipe P) is with a 2-year lookback** — if the
+    definition is not `P2Y`, update it to `P2Y` before `d360_segment_publish`. Never publish
+    with `P90D`, `P3Y`, or any other window. `d360_segment_publish` has no lookback field, so
+    the window must be set at create/update time.
+  - Confirm both the `test` suffix and `P2Y` with the user before create.
 - **Entity:** Health Care Professional (HCP) profiles, or DTC patient/consumer profiles, plus their
   related engagement/consent objects in Data 360.
 - **Fields (illustrative — confirm exact API names with the Data Cloud Architect):**
@@ -174,8 +195,11 @@ must remain `COUNT(DISTINCT …)` only — never add PII columns.
   Segment: <display name> (<segmentApiName>) · ID: <marketSegmentId>
   ```
 
-  Resolve `<dmoId>` with `d360_dmo_get` (`dataModelObjectName`). For pure DMO/SQL counts with no
-  MarketSegment, set the segment line to `N/A — DMO count only (no MarketSegment)`.
+  Resolve `<dmoId>` with `d360_dmo_get` (`dataModelObjectName`). **Always emit the segment link
+  line** on count and create. On create/update/status, it is the MarketSegment URL. On a Recipe A
+  count, look up a matching existing segment first; if none, still print
+  `N/A — no MarketSegment for this count yet` plus the org `MarketSegment/list` URL. Never omit
+  the line.
 
 - Dataspace name (`STG_US` / `PRD_US` / …), refresh timestamps, and validation deltas.
 - Non-PII **aggregate** diagnostics only when needed (fill-rates; `GROUP BY` on `pii:false`
@@ -204,7 +228,7 @@ Delta: PENDING / N/A
 > **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 
 **Data 360 DMO link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view
-**Data 360 segment link:** <MarketSegment URL or N/A — DMO count only (no MarketSegment)>
+**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
 ```
 
 Rules for the table:
@@ -212,8 +236,11 @@ Rules for the table:
 - **Always include both rows.** Never drop the Snowflake row. Do **not** probe Snowflake MCP —
   put **PENDING** (or **N/A — connector not Snowflake**) in the Count cell and always share the
   validation SQL.
-- **Always include DMO + segment link lines** under the table (see shapes above). Resolve DMO ids
-  with `d360_dmo_get`. Multi-DMO counts list one DMO link per primary fact DMO.
+- **Always include DMO + segment link lines** under the table — **count and create**. Resolve DMO
+  ids with `d360_dmo_get`. Multi-DMO counts list one DMO link per primary fact DMO. Resolve the
+  segment URL from create/get, or from a matching existing segment on a count. If a count has no
+  MarketSegment yet, keep the line and set it to `N/A — no MarketSegment for this count yet` plus
+  `…/lightning/o/MarketSegment/list`. Never omit **Data 360 segment link:**.
 - **Counts only — no PII in the table.** The table carries integers and source metadata, never person
   attributes.
 - Keep business labels in the surrounding prose (see *Talking to the user*); the table's `Reference`
@@ -445,8 +472,12 @@ user if ambiguous.
       ```
 
    5. Resolve **Data 360 DMO link(s)** with `d360_dmo_get` and emit
-      `…/lightning/r/MktDataModelObject/<dmoId>/view`. Emit the **Data 360 segment link** when a
-      MarketSegment applies; otherwise `N/A — DMO count only (no MarketSegment)`.
+      `…/lightning/r/MktDataModelObject/<dmoId>/view`. **Always emit the Data 360 segment link**
+      on this count (and on create). Look up a matching MarketSegment (`d360_segment_list` /
+      `d360_segment_get` / known catalog). If found, emit
+      `…/lightning/r/MarketSegment/<marketSegmentId>/view`. If none, still emit
+      `Data 360 segment link: N/A — no MarketSegment for this count yet` plus
+      `…/lightning/o/MarketSegment/list`. Never omit the segment-link line.
 7. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty / unknown values**:
    - **If the count comes back 0 / empty**, don't stop at "0". **Profile the DMO** that filtered it out. The GA facade has **no dedicated data-profiler** — `d360_profile_query`/`d360_profile_metadata` are the *Profile query API* (they query/describe the unified profile DMOs), not a column-statistics tool. So profiling means **writing aggregation SQL through the Query SQL op** (`d360_query_sql`): per-column populated count + percent (the fill-rate expression below), cardinality (`COUNT(DISTINCT …)`), and — for non-PII, low-cardinality categorical fields — the value breakdown (`GROUP BY`). **You enforce PII-safety** — for `pii:true` fields query **fill-rate only, never the literals**. Use the result to tell the user *what values ARE present* and to distinguish "zero matches" from "the field isn't populated at all."
    - **When the user asks about a specific value, or you are unsure what values a field holds**, run a value-distribution query **before** (or instead of) guessing literals. Canonical shape (non-PII fields only):
@@ -570,9 +601,10 @@ Activation status: <ACTIVATED|CONFIGURED, NOT ACTIVE|NOT ACTIVATED|UNKNOWN>
 Never omit the **Data 360 DMO link** or **Data 360 segment link** on a segment count/status read.
 ## Recipe B — Push (build a segment → activate)
 
-**Trigger:** the user wants to turn a population into a segment — most commonly **"now build that as
+**Trigger:** the user wants to turn a population into a segment — a **plain-English use case**
+("build a segment of patients who have a copay card with a card number"), **"now build that as
 a segment"** right after a Recipe A count, or (for Phase-2 validation) **"rebuild this reference
-segment."**
+segment."** For natural language, start at **Entry point 0**.
 
 **Mental model:** a segment is the **same population as a count, expressed as membership** (the list
 of SegmentOn primary keys) instead of a number. The criteria you mapped for the count *are* the
@@ -581,35 +613,129 @@ So don't re-interpret the request; reuse the mapping you already have.
 
 There are three entry points; they converge on the same build-and-status core.
 
-### Entry point 0 — build directly from a use case
+### Entry point 0 — build directly from a natural-language use case
 
-**Canonical DTC reference (learn this shape):**
-[UAT -DTC Test Scenario-RX Program](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008iLYAQ)
-(`DTC_UAT_DTC_Test_Scenario_2`, `1sgWC00000008iLYAQ`, ~2,504 members). Use-case description →
-**one SegmentOn + AND of DMO containers**. Full walkthrough:
-[../../reference/creating-segments.md](../../reference/creating-segments.md) *Worked example — DTC
-use case → multi-DMO containers*.
+**Trigger:** the user describes a population in plain English and asks to **create / build a
+segment** (with or without a prior count). Also use this when they paste a Data 360 segment URL
+and ask you to **learn from it** or **rebuild** it.
 
-1. When the user provides a plain-English use case and asks to create a segment, first apply
-   Recipe A steps 0–6: confirm audience + dataspace, map the semantic layer, run the count-only
-   query, and (when Snowflake-fed) prepare the dual report. This establishes the expected
-   population before any write.
-2. **Decompose the use case into DMO containers** (UI pattern = `NumberAggregation` count ≥ 1 per
-   related DMO; DBT pattern = one `Id__c IN (SELECT …)` subquery per container):
-   - Restate the use case as bullet filters.
-   - Assign each filter cluster to a **related DMO** (e.g. Consent Preference vs Brand Profile).
-   - **Between containers:** top-level **AND** (person must satisfy every container).
-   - **Inside a container:** **AND** for co-required attributes; **OR** for alternatives.
-   - **Patient/D2C:** prepend the **CIA Consumer Marketable Email** membership container first
-     (Skill rule), then the use-case containers — even if a legacy UI reference omitted CIA.
-   - SegmentOn = unified profile for that dataspace (`DTC_UnifiedIndividualDtc__dlm` for DTC).
-   - Related DMOs always traverse the **identity link** (Unified → Link → source / related).
-3. Confirm the interpreted filters, container AND/OR logic, and the Data 360 count with the user.
-   If the count is 0 because a backing DMO is empty, show the SQL and offer a **draft definition**,
-   but do not imply that the segment will have members. Prefer live `includeCriteria` over a
-   marketing description when they diverge (e.g. description "3 years" vs filter **24 months**).
-4. Translate the exact confirmed mapping into membership SQL. Never reinterpret or broaden the
-   use case between count and create.
+**Canonical UI references (learn the container shape, then apply Skill deltas):**
+
+| Learn from | URL | What it teaches |
+| --- | --- | --- |
+| UAT RX Program (multi-DMO) | [1sgWC00000008iLYAQ](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008iLYAQ) | Two **AND** containers (Consent Preference + Brand Profile), OR inside Brand Profile |
+| Copay Card on Individual (single DMO) | [1sgWC00000009ePYAQ](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000009ePYAQ) | One related-DMO container, `count ≥ 1`, AND of “in list” + “has value”; SegmentOn Individual |
+| UAT copay + brand + recency | [1sgWC00000008jxYAA](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008jxYAA) | One Copay Card container on Unified; AND of has-value + brand IN list + 36-month acquisition **and** recency. Description “Copay and Voucher” has **no voucher DMO** |
+| UAT email OR (two engagement DMOs) | [1sgWC00000008lZYAQ](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008lZYAQ) (original) · [1sgWC00000008vFYAQ](https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/cmp/runtime_cdp__segmentWizardLanding?runtime_cdp__record_id=1sgWC00000008vFYAQ) (Mariana clone) | Top-level **OR** (union) of SFMC Email Engagement **or** HQ Email Engagement; different action literals and person-link names per DMO. Both have the **same** `includeCriteria` |
+
+Full walkthroughs: [../../reference/creating-segments.md](../../reference/creating-segments.md)
+*Worked example — DTC use case → multi-DMO containers*, *Worked example — copay card (natural
+language → one container)*, *Worked example — copay + brand + recency (UAT scenario 3)*, and
+*Worked example — email engagement OR (two DMOs)*.
+
+**Playbook — natural language → segment (always this order):**
+
+1. **Route.** Audience (HCP vs patient) + dataspace. Patient/D2C → `DTC` +
+   [dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml). HCP → the named US space YAML.
+2. **Restate the use case as bullets** the user can confirm. Example from the copay-card segment:
+   *Patients who have at least one copay card with a card number filled in* (the live UI also
+   restricts to a test allowlist of customer keys — do **not** copy those IDs into answers; they
+   are customer IDs / PII).
+3. **Decompose into DMO containers** (UI = `NumberAggregation` count ≥ 1 on a related DMO;
+   DBT = one `SegmentOn.PK IN (SELECT related.FK …)` subquery per container):
+   - One **related DMO** per existence check (Copay Card, Brand Profile, Consent, Preference,
+     Email Engagement, Headquarter Email Engagement, …).
+   - **Between containers:** take the operator from the use case. **AND** = intersection (must
+     satisfy every container — UAT RX). **OR** = union (qualify via *either* related DMO — UAT
+     email scenario 4). Do not default to AND when the ask is “SFMC **or** HQ email.”
+   - **Inside a container:** **AND** for co-required attributes (`Open/Click` AND `Journey name
+     has value`); **OR** for alternatives (`Caregiver OR Prospect OR Patient`).
+   - **Action literals are DMO-specific.** SFMC `DTC_Email_Engagement__dlm` uses `Open` / `Click`.
+     HQ `DTC_HeadquarterEmailEngagement__dlm` uses `Open Email` / `Click Email` / `Send Email` /
+     `Email Delivered`. Never copy HCP `OPENED` or mix the two vocabularies.
+   - **Person-link names differ:** Email Engagement → `Individual__c`; HQ Email → `IndividualId__c`.
+   - Map every field through the routed YAML — never guess join keys.
+   - Related DMOs on Unified SegmentOn always traverse the **identity link**
+     (Unified → Link → source Individual → related DMO).
+   - Trust live `includeCriteria` over description **and** over `lookbackPeriod` when they
+     disagree (this UI segment’s lookback is `P90D` but HQ filter is **1 year**).
+4. **Patient/D2C — ASK CIA, then apply Skill deltas:**
+   - SegmentOn = **`DTC_UnifiedIndividualDtc__dlm`** (not `DTC_Individual__dlm`).
+   - **Ask:** *Include CIA Consumer Marketable Email as the first membership filter?* Wait for
+     yes or no. **Yes** → Container 0 = CIA membership DMO, then the use-case containers.
+     **No** → omit CIA; use-case containers only. Never nest or skip without that answer.
+5. **Count first (Recipe A).** Same filters / same CIA nest. Dual-report table + DMO links +
+   segment link line. If the count is 0 because a DMO or CIA SM nest is empty, show the SQL and
+   do not imply the created segment will have members.
+6. **Confirm** display name (must end with ` test`), API name (must end with `_test`),
+   `lookbackPeriod: P2Y`, dataspace, SegmentOn, containers, AND/OR, and expected count.
+7. **Translate to membership SQL** (SegmentOn PK only — no `COUNT`, no aliases). Create with
+   `d360_segment_create` (`segmentType: Dbt`, `lookbackPeriod: "P2Y"`, `publishSchedule: NoRefresh`
+   unless asked). Then publish on confirmation (`d360_segment_publish`).
+8. **Read back** with Recipe S: member count, dual-report table, **Data 360 segment link**, DMO
+   links. Prefer live `includeCriteria` over a marketing description when they diverge.
+
+**UAT RX Program natural-language example (from `1sgWC00000008iLYAQ`) — canonical AND of two DMOs:**
+
+> For patients in DTC, build a D2C segment of consumers who are opted in to Brand or Topic ALL
+> communications **and** who are a Caregiver, Prospect, or Patient, or on a prescription program,
+> or on medication, or acquired in the last 24 months.
+
+| Step | What you do |
+| --- | --- |
+| Route | Patient → `DTC` |
+| Containers | **Ask CIA first.** If yes, Container 0 = CIA. Then **AND** of: (1) Consent Preference count ≥ 1, `PreferenceName__c = 'ALL'` AND type IN (`Brand`,`Topic`) AND value `IN`; path Unified → Link → Individual → ContactPointConsent → ConsentPreference. (2) Brand Profile count ≥ 1, `CustomerType__c` IN (`Caregiver`,`Prospect`,`Patient`) **OR** `OnPrescriptionDrugProgram__c` **OR** `OnMedication__c` **OR** `AcquisitionDate__c` last 24 months; FK `IndividualId__c` |
+| SQL shape | `(optional CIA AND) ConsentPreference AND BrandProfile` |
+| Watch | Description says “enrolled in the last **3 years**”; live filter is **24 months**. UI has **no CIA**. Published members are a `NoRefresh` snapshot — re-count with Recipe A before rebuild. Publish lookback is always **`P2Y`**. |
+
+The live UI is already SegmentOn Unified. A Skill rebuild **asks CIA**, keeps **AND between** containers and **OR inside** Brand Profile, and uses 24 months not 3 years.
+
+**Copay-card natural-language example (from `1sgWC00000009ePYAQ`):**
+
+> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
+> on file.
+
+| Step | What you do |
+| --- | --- |
+| Route | Patient → `DTC` |
+| Containers | **Ask CIA first.** If yes, Container 0 = CIA. Then Copay Card (`DTC_CopayCard__dlm`) count ≥ 1, `CardNumber__c` has value. Path: Unified → Link → Individual → Copay Card `IndividualId__c` |
+| Do not copy | The UI allowlist of six `MTDB_CUSTOMER_ID-*` keys (customer IDs — PII). Only keep an allowlist if the user explicitly wants a test slice. |
+| Count | `COUNT(DISTINCT` Unified `Id__c`) with the same nests (same CIA choice) |
+| Create | Membership SQL: optional CIA `IN` subquery AND Copay Card `IN` subquery; SegmentOn Unified Individual; name ends with `test`; `lookbackPeriod: P2Y` before publish |
+
+The live UI segment is SegmentOn **Individual**, 6 members, **no CIA** — a QA named-list. A Skill
+rebuild is Unified + **ask CIA** + Copay Card has-value (full population unless the user asks to
+keep a test list).
+
+**UAT copay + brand + recency natural-language example (from `1sgWC00000008jxYAA`):**
+
+> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
+> on file for NURTEC, XELJANZ, PAXLOVID, EUCRISA, or LORBRENA, acquired in the last 36 months,
+> with activity in the last 36 months.
+
+| Step | What you do |
+| --- | --- |
+| Route | Patient → `DTC` |
+| Containers | **Ask CIA first.** If yes, Container 0 = CIA. Then Copay Card (`DTC_CopayCard__dlm`) count ≥ 1: `CardNumber__c` has value **AND** `Brand__c` IN (`NURTEC`,`XELJANZ`,`PAXLOVID`,`EUCRISA`,`LORBRENA`) **AND** `AcquisitionDate__c` last 36 months **AND** `MostRecentDate__c` last 36 months. Path: Unified → Link → Individual → Copay Card `IndividualId__c` |
+| SQL shape | `(optional CIA AND) CopayCard` (one related DMO; AND inside the container) |
+| Do not copy | Card numbers (PII). Description “Copay and Voucher” — **no voucher DMO** in `includeCriteria`. |
+| Watch | Lookback metadata is `P90D`; live filters are **36 months**. Keep the 36-month SQL filters; **publish lookback is always `P2Y`** (never `P3Y`). Published members are a `NoRefresh` snapshot. |
+
+The live UI is already SegmentOn Unified and has **no CIA**. A Skill rebuild **asks CIA**, keeps the single Copay Card container, keeps 36-month SQL filters (not `P90D`), publishes with **`P2Y`**, and does not invent a voucher object.
+
+**Email-engagement OR natural-language example (from `1sgWC00000008lZYAQ`; Mariana clone `1sgWC00000008vFYAQ` has the same `includeCriteria`):**
+
+> For patients in DTC, build a D2C segment of consumers who opened or clicked an SFMC journey
+> email, **or** had a headquarter email send / open / click / delivered in the last year.
+
+| Step | What you do |
+| --- | --- |
+| Route | Patient → `DTC` |
+| Containers | **Ask CIA first.** If yes, Container 0 = CIA. Then **OR** of: (1) `DTC_Email_Engagement__dlm` count ≥ 1, action IN (`Open`,`Click`) AND `MarketJourneyName__c` has value, FK `Individual__c`; (2) `DTC_HeadquarterEmailEngagement__dlm` count ≥ 1, action IN (`Click Email`,`Open Email`,`Send Email`,`Email Delivered`) AND `EngagementDateTime__c` in last 1 year, FK `IndividualId__c` |
+| SQL shape | `(optional CIA AND) (SFMC IN-subquery OR HQ IN-subquery)` — not three ANDs |
+| Watch | SFMC container is **0** (person link not audience-ready). Published members **39** are `NoRefresh` from 2026-06-03; live Unified HQ path is larger. Description “SFMC currently 0” matches; `P90D` lookback does **not** override the 1-year HQ filter. Publish lookback is always **`P2Y`**. |
+
+The live UI is already SegmentOn Unified and has **no CIA**. A Skill rebuild **asks CIA**, keeps the **OR** of the two engagement containers, and uses each DMO’s own action literals and FK name.
 
 ### Entry point 1 — build from the count you just ran (primary)
 
@@ -625,14 +751,16 @@ use case → multi-DMO containers*.
    **only** input allowed into the rebuild; do **not** copy the original raw filter JSON forward.
    Then map that description through the semantic layer exactly as in entry point 1.
 
-### CIA Consumer Marketable Email base (D2C) — required before other DMOs
+### CIA Consumer Marketable Email base (D2C) — ask, then nest if yes
 
 For every **patient / consumer / D2C / DTC** segment create or update:
 
-1. **SegmentOn** must be **`DTC_UnifiedIndividualDtc__dlm`** (same profile as CIA Consumer Marketable
-   Email). Do **not** SegmentOn `DTC_Individual__dlm` for activatable D2C audiences.
-2. **First filter** — nest the **CIA Consumer Marketable Email** segment membership DMO, then AND
-   every other use-case DMO inside additional `WHERE … IN (SELECT …)` subqueries:
+0. **Ask first (required):** *Include CIA Consumer Marketable Email as the first membership
+   filter?* Wait for **yes** or **no**. Do not nest CIA and do not omit it without that answer.
+1. **SegmentOn** must be **`DTC_UnifiedIndividualDtc__dlm`**. Do **not** SegmentOn
+   `DTC_Individual__dlm` for activatable D2C audiences.
+2. **If yes** — nest the **CIA Consumer Marketable Email** segment membership DMO as the first
+   filter, then AND every other use-case DMO:
    - Display name: **CIA Consumer Marketable Email**
    - Segment API name: `DTC_CIA_Consumer_Marketable_Email`
    - `marketSegmentId`: `1sgWC00000009cnYAA` (confirm with `d360_segment_get` if stale)
@@ -641,10 +769,10 @@ For every **patient / consumer / D2C / DTC** segment create or update:
    - Confirmed fields (2026-08-12): `Id__c` = Unified Individual PK; `Segment_Id__c` = segment id
      (org stores **15-char** ids in this DMO — use `1sgWC00000009cn` or
      `Segment_Id__c LIKE '1sgWC00000009cn%'`; confirm before publish)
-3. **Then** add the necessary DMOs for the ask (Brand Profile, Contact Point Consent / Preference,
-   email, engagement, etc.) via declared join keys / identity-link paths in
+3. **If no** — omit the CIA nest. Build the use-case DMO containers only (still Unified SegmentOn).
+4. **Then** add the necessary DMOs for the ask via declared join keys / identity-link paths in
    [../../reference/dataModel-dtc.yaml](../../reference/dataModel-dtc.yaml).
-4. **Shape (membership):**
+5. **Shape (membership) when CIA = yes:**
 
 ```sql
 SELECT DTC_UnifiedIndividualDtc__dlm.Id__c
@@ -659,12 +787,12 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
   );
 ```
 
-5. **Counts (Recipe A) for the same population** must apply the same CIA membership nest first so
-   the count matches the segment. Prefer `COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)`.
-6. **If CIA membership rows are missing** in the Latest SM DMO (nest returns 0 while
-   `lastSegmentMemberCount` on CIA is non-zero): **do not silently drop the CIA layer**. Tell the
-   user the nest is empty, show the SQL, and only if they explicitly approve a temporary fallback,
-   replicate marketable email+consent filters from `reference_segments` /
+6. **Counts (Recipe A)** for the same population must use the same CIA choice so the count matches
+   the segment. Prefer `COUNT(DISTINCT DTC_UnifiedIndividualDtc__dlm.Id__c)`.
+7. **If the user said yes and CIA membership rows are missing** in the Latest SM DMO (nest returns
+   0 while `lastSegmentMemberCount` on CIA is non-zero): **do not silently drop the CIA layer**.
+   Tell the user the nest is empty, show the SQL, and only if they explicitly approve a temporary
+   fallback, replicate marketable email+consent filters from `reference_segments` /
    `journeys.marketable_patients` — still SegmentOn Unified Individual, still tag **D2C**, and still
    call out that the durable pattern is the CIA membership DMO.
 
@@ -679,29 +807,37 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
    declared keys; subqueries only in `WHERE`. Never submit a `COUNT(DISTINCT …)` — Data 360 rejects
    it as a segment. Create/publish in the **routed dataspace** — an **HCP** segment goes to the HCP
    dataspace the user chose (`Development` / `STG_US` / `PRD_US`); a **patient/D2C** segment goes to
-   `DTC` — unless the user explicitly chose another. **For patient/D2C, apply the CIA Consumer
-   Marketable Email base layer above before any other DMO filters.** For ZIP-radius
+   `DTC` — unless the user explicitly chose another. **For patient/D2C, ask whether to include CIA
+   Consumer Marketable Email, then apply the CIA base layer above only if they said yes.** For ZIP-radius
    populations, reuse the **same precomputed ZIP5 `IN` list** from the count
    ([../../reference/zip-radius.md](../../reference/zip-radius.md)).
-4. Propose deterministic names — **tag the audience** so every segment name states who it targets:
+4. Propose deterministic names — **tag the audience** so every segment name states who it targets,
+   and **always append `test`**:
    - **Audience tag (required):** a **doctor** segment is tagged **`HCP`**; a **patient/consumer**
      segment is tagged **`D2C`**. Put the tag in both names.
-   - `displayName`: human-readable, prefixed `DEMO_` for demo segments, and include the audience tag —
-     e.g. `DEMO_HCP_<brand>_Email_Openers_90d` or `DEMO_D2C_<brand>_Brand_Profile`.
-   - `developerName`: API-safe and stable, also carrying the tag — e.g. `DEMO_HCP_<brand>_email_openers_90d`;
-     do not overwrite an existing segment silently.
+   - `displayName`: human-readable, prefixed `DEMO_` for demo segments, include the audience tag,
+     and **end with ` test`** — e.g. `DEMO_HCP_<brand>_Email_Openers_90d test` or
+     `DEMO_D2C_<brand>_Brand_Profile test`. Do not double-append if it already ends with `test`.
+   - `developerName`: API-safe and stable, also carrying the tag, and **end with `_test`** — e.g.
+     `DEMO_HCP_<brand>_email_openers_90d_test`; do not overwrite an existing segment silently.
+   - `lookbackPeriod`: always **`P2Y`** (2 years) on create (and when updating before republish).
    - `publishSchedule`: `NoRefresh` unless the user requested and approved another schedule.
-5. **Confirm before creating.** Show display/API name, dataspace, SegmentOn DMO, plain-English
-   filters, membership SQL, expected Recipe A count, and whether empty profile streams will force
-   zero members. Creation is a write; wait for explicit confirmation.
+5. **Confirm before creating.** Show display/API name (with `test` suffix), `lookbackPeriod: P2Y`,
+   dataspace, SegmentOn DMO, **CIA yes/no** (D2C only), plain-English filters, membership SQL,
+   expected Recipe A count, and whether empty profile streams will force zero members. Creation is
+   a write; wait for explicit confirmation.
 6. `search` → `payload_examples` → `execute` **`d360_segment_create`** with the routed
-   `dataspace` / `input.dataSpace`, `segmentType: "Dbt"`, `segmentOnApiName`, and one DBT model whose
-   SQL is the membership query. Capture the returned **`marketSegmentId`**, API/developer name,
-   and dataspace — you will need them for the **Data 360 segment link**.
+   `dataspace` / `input.dataSpace`, `segmentType: "Dbt"`, `lookbackPeriod: "P2Y"`,
+   `segmentOnApiName`, and one DBT model whose SQL is the membership query. Capture the returned
+   **`marketSegmentId`**, API/developer name, and dataspace — you will need them for the
+   **Data 360 segment link**.
 7. **Do not publish automatically just because create succeeded.** Read the created definition
-   with `d360_segment_get`, show it to the user (including the **Data 360 segment link**), and ask
-   for publish confirmation. On confirmation,
-   `execute` **`d360_segment_publish`** using the returned segment ID.
+   with `d360_segment_get`, confirm `lookbackPeriod` is `P2Y` and the name ends with `test`,
+   show it to the user (including the **Data 360 segment link**), and ask for publish confirmation.
+   On confirmation, follow **Recipe P** (`d360_segment_publish` with **`segmentId`** =
+   `marketSegmentId`, not the API name). DBT create may already show `ACTIVE` after COUNTING —
+   that is evaluation, not a substitute for an on-demand publish when the user asked to publish
+   or needs a fresh `NoRefresh` snapshot.
 8. **Sanity-check membership against the count + Snowflake SQL.** Follow Recipe S to pull the
    segment's member count and publication status, then confirm it
    matches the Recipe A count for the same criteria — same population, so they should agree. If they
@@ -731,6 +867,61 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
    SFMC receipt; for build-from-count — (1) segment membership matches the count, (2) SFMC receipt.
    Always close with the dual-count block + DMO link + segment link.
 
+## Recipe P — Publish a segment (on-demand evaluation)
+
+**Trigger:** the user says **publish**, **republish**, **refresh membership**, or **evaluate** a
+segment they already created (or just confirmed after Recipe B). Create, publish, and activate
+are **separate writes** — a create does not authorize publish.
+
+**What publish does:** `d360_segment_publish` evaluates the segment **now** and writes a fresh
+audience snapshot. It does **not** change filters, lookback, or schedule. It does **not** activate.
+
+**Tool (always `payload_examples` first):** `d360_segment_publish`
+
+| Parameter | Required | Notes |
+| --- | --- | --- |
+| `segmentId` | **yes** | 18-character **`marketSegmentId`** (starts with `1sg`). **Not** `segmentApiName`. |
+| `dataspace` | yes on `execute` | Same dataspace as the segment (`DTC`, `Development`, `STG_US`, `PRD_US`) |
+
+**Exact `execute` shape:**
+
+```text
+toolName: d360_segment_publish
+paramsJson: {"dataspace":"<dataspace>","segmentId":"<marketSegmentId>"}
+```
+
+Example: `{"dataspace":"DTC","segmentId":"1sgWC0000000AfJYAU"}`.
+
+Do **not** pass `lookbackPeriod` on publish — the tool has no lookback field. If the definition is
+not `P2Y`, `d360_segment_update` with `lookbackPeriod: "P2Y"` **before** publish. Never publish
+with any other window.
+
+### Playbook
+
+1. **Identify.** Recipe S: `d360_segment_get` (or `d360_segment_get_by_id`). Capture
+   `marketSegmentId`, `segmentApiName`, dataspace, `lookbackPeriod`, `segmentStatus`,
+   `lastSegmentMemberCount`, **Data 360 segment link**.
+2. **Pre-checks.** Confirm `lookbackPeriod` is **`P2Y`**. If it is not, update to `P2Y` before
+   publish. Confirm D2C CIA choice (asked and recorded). Do not publish
+   `PRD_US` / `PRD_PAT` without governance sign-off.
+3. **Confirm.** Show display/API name, `marketSegmentId`, dataspace, lookback, current status and
+   member count, and the Lightning URL. Wait for an explicit **publish**.
+4. **Publish.** `execute` `d360_segment_publish` with `dataspace` + `segmentId` only.
+5. **Poll.** `d360_segment_get` until status leaves `PROCESSING` / `COUNTING`:
+   - **ACTIVE** → report `lastSegmentMemberCount`.
+   - **ERROR** → stop; show the membership SQL; do not retry blindly; do not activate.
+6. **Dual-report** Recipe A count vs published members (Snowflake PENDING/N/A + validation SQL +
+   note + DMO link + segment link). If they diverge, reconcile before activation.
+7. **Do not activate** unless the user separately asked.
+
+**DBT create vs publish:** after `d360_segment_create`, status often moves `PROCESSING` →
+`COUNTING` → `ACTIVE` with a first snapshot. Treat that as create-time evaluation. Still run
+Recipe P when the user asks to publish, after an update, or when `NoRefresh` membership is stale
+vs live Recipe A.
+
+**Not publish:** `d360_segment_count` (async estimate only). `d360_activation_*` (activation).
+`d360_segment_update` (definition change).
+
 ## Recipe U — Update an existing segment
 
 **Trigger:** the user asks to change an existing segment's criteria (broaden/narrow filters, change
@@ -741,18 +932,19 @@ brand, window, threshold), rename it, or change its schedule.
 2. **Read the current segment** with `d360_segment_get` (Recipe S) and restate its definition in
    plain English so the user confirms what they're changing from.
 3. **Re-map the new criteria** through the semantic layer (same rules as Recipe B). Rebuild the
-   **membership SQL** (SegmentOn PK only — no `COUNT`, no PII). For patient/D2C updates, **keep**
-   the **CIA Consumer Marketable Email** membership nest as the first filter, then apply the
-   changed DMOs.
+   **membership SQL** (SegmentOn PK only — no `COUNT`, no PII). For patient/D2C updates, **ask CIA**
+   (keep, add, or omit the nest per the answer), then apply the changed DMOs.
 4. **Count the new population first (Recipe A) and emit Snowflake validation SQL** — query Data 360
    only (do **not** probe Snowflake MCP); report Data 360 + Snowflake PENDING/N/A in the **required
    dual-report table** with validation SQL, note, DMO link(s), and segment link. This shows the
    impact of the change before writing.
 5. **Confirm before writing.** Show old vs new definition, dataspace, the new expected count, and
-   the existing **Data 360 segment link**.
-6. `search` → `payload_examples` → `execute` **`d360_segment_update`** in the routed dataspace.
-   Do not re-publish or re-activate automatically — publish only on confirmation
-   (`d360_segment_publish`), and re-activate only on separate confirmation.
+   the existing **Data 360 segment link**. If renaming, keep / append the `test` suffix
+   (`displayName` …` test`, API …`_test`). Set / keep `lookbackPeriod: "P2Y"`. For D2C, **ask CIA**
+   if the update would add or remove that nest.
+6. `search` → `payload_examples` → `execute` **`d360_segment_update`** in the routed dataspace
+   (include `lookbackPeriod: "P2Y"`). Do not re-publish or re-activate automatically — publish only
+   on confirmation (**Recipe P**), and re-activate only on separate confirmation.
 7. **Read back** with Recipe S (member count, Snowflake dual-report, publication status, activation
    status, **Data 360 segment link**) and report the three states separately.
 
@@ -828,7 +1020,9 @@ answer into business language; keep the technical form for execution and for any
 
   > **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 
-  Always close with **Data 360 DMO link** + **Data 360 segment link** (or segment N/A).
+  Always close with **Data 360 DMO link** + **Data 360 segment link**. On a count, look up a
+  matching MarketSegment; if none exists yet, keep the line (`N/A — no MarketSegment for this
+  count yet` + `MarketSegment/list`). On create, the line is the new segment's Lightning URL.
 
   When the user **starts a chat** or asks what to run, offer suggestion prompts from
   [../../prompts/chat-starters.md](../../prompts/chat-starters.md) (dataspace + populated DMO named).
@@ -874,13 +1068,18 @@ answer into business language; keep the technical form for execution and for any
   Snowflake **PENDING** / **N/A — connector not Snowflake** and always share the exact validation
   SQL. Do not ship a D360-only answer, and do not render the comparison as prose-only, when a
   Snowflake table feeds the stream.
-- **Always include Data 360 DMO + segment links** with every count: resolve DMO id via
-  `d360_dmo_get` → `/lightning/r/MktDataModelObject/<dmoId>/view`; for segments use
-  `/lightning/r/MarketSegment/<marketSegmentId>/view` (with org host). For DMO-only counts, segment
-  link is `N/A — DMO count only (no MarketSegment)`. Never leave the user without a DMO link.
+- **Always include Data 360 DMO + segment links on count and create.** Resolve DMO id via
+  `d360_dmo_get` → `/lightning/r/MktDataModelObject/<dmoId>/view`. Resolve segment id via
+  create/get/list → `/lightning/r/MarketSegment/<marketSegmentId>/view` (org host). Never omit
+  **Data 360 segment link:** from a Recipe A count or a Recipe B/U create/update. If a count has
+  no matching MarketSegment yet, still print the line (`N/A — no MarketSegment for this count yet`
+  plus `/lightning/o/MarketSegment/list`). Never leave the user without both link lines.
 - **Create, publish, and activate are separate writes.** A request to create authorizes create only,
   not publish or activation. Show the definition and dataspace before create; read it back after
-  create; obtain separate confirmation before publish and again before activation.
+  create; obtain separate confirmation before publish (**Recipe P** — `d360_segment_publish` with
+  `segmentId` = `marketSegmentId`) and again before activation. **Every create
+  must use a name ending in `test` (`displayName` …` test`, API …`_test`) and
+  `lookbackPeriod: P2Y`** before publish.
 - **Read segment status without reading members.** Use segment get/count plus activation list/get.
   Do not use `d360_segment_member_list` for status/count reporting.
 - **POC Staging — return SQL when empty.** For counts (Recipe A) and segments (Recipe B) in **`STG_US`** or **`Development`**: if the result is 0 / empty / underlying DMO unpopulated, return the exact SQL that was run (or the segment `sql` that was built) so the team can validate it in lieu of a result. That SQL stays count-only / membership-PK-only — **still never dump PII rows** (same bar as `PRD_US`).
@@ -902,10 +1101,14 @@ answer into business language; keep the technical form for execution and for any
 - **Refresh-timing gate.** Always capture and report both timestamps; never compare across different refresh windows.
 - **No unbounded reads.** Return counts and definitions, not raw HCP/patient/PII rows. Never `SELECT *` on people tables for a count ask.
 - **Segment SQL ≠ count SQL.** A segment's inclusion criteria return the **list of SegmentOn PKs** (the membership), not a number: project the **SegmentOn profile PK** (**plus its key qualifier if the PK has one** — e.g. `ssot__Individual__dlm` requires `KQ_Id__c` alongside `ssot__Id__c`) — no aggregation, no `DISTINCT`, no `SELECT *`, no aliases, no `CASE`; fully-qualified columns; joins only on declared relationship keys; subqueries only in `WHERE` (one column). Never submit a `COUNT(DISTINCT …)` query as a segment. See [../../reference/creating-segments.md](../../reference/creating-segments.md).
-- **D2C / patient segments always nest CIA Consumer Marketable Email first.** Before Brand Profile,
-  consent, engagement, or any other DMO, filter to members of **CIA Consumer Marketable Email** via
-  its Segment Membership Latest DMO (`DTC_UnifiedIndividualDtc_SM_1780343389__dlm`), with
-  SegmentOn `DTC_UnifiedIndividualDtc__dlm`. See Recipe B *CIA Consumer Marketable Email base*.
+- **D2C / patient segments — ask CIA, then nest only if yes.** Before Brand Profile, consent,
+  engagement, or any other DMO, ask: *Include CIA Consumer Marketable Email as the first membership
+  filter?* If **yes**, nest via Segment Membership Latest DMO
+  (`DTC_UnifiedIndividualDtc_SM_1780343389__dlm`). If **no**, omit CIA. Always SegmentOn
+  `DTC_UnifiedIndividualDtc__dlm`. See Recipe B *CIA Consumer Marketable Email base*.
+- **Every segment publish uses lookback `P2Y`.** Create and update with `lookbackPeriod: "P2Y"`.
+  Never publish with `P90D`, `P3Y`, or any other window. Date filters in SQL (e.g. 36 months) stay
+  as written; the segment lookback metadata is still `P2Y`.
 - **Never guess the schema.** DMOs, fields, and join keys come from the routed model — not from field-name inference, and not from the other audience's model. Count people with `COUNT(DISTINCT` anchor `count_key)`. A count built on a `VERIFY` element is still returned — just note the mapping is unverified pending architect confirmation.
 - **Stay in the entity model.** Only the authorized objects/fields in the routed model and the listed operations, regardless of brand.
 - **Respect Discovery mode.** In `strict` mode, never run runtime metadata/discovery ops — use only the locked, `verified` model; ask a human to add anything missing. Runtime discovery is allowed only in `propose` mode, and only as a `VERIFY` proposal.

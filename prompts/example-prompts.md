@@ -17,7 +17,7 @@ Paste as-is with the `d360-segments-activations` Skill and `data360` MCP connect
    - **HCP (US Customer Data):** `DEV-US` → `Development`, `STG-US` → `STG_US`, `PRD-US` → `PRD_US`
    - **Patient / D2C:** `DTC` (live). `PRD-PAT` is empty — use `DTC`.
 2. **Audience:** US customer → HCP model; patient/consumer → DTC.
-3. **D2C create/update:** nest **CIA Consumer Marketable Email** first, then other DMOs.
+3. **D2C create/update:** **ask** whether to include **CIA Consumer Marketable Email**; nest it first only if yes. Every publish uses **`lookbackPeriod: P2Y`**.
 4. **Dual-report:** live Data 360 count + Snowflake validation SQL (PENDING / N/A) — do **not** probe Snowflake MCP — plus DMO and segment links.
 5. **Low-friction prompts:** name dataspace + populated DMO(s) so the agent does **not** re-ask
    routing questions. Prefer the **copy-paste ready** block below.

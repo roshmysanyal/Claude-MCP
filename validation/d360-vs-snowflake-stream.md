@@ -40,10 +40,12 @@ Segment: <display name> (<segmentApiName>) · ID: <marketSegmentId>
 ```
 
 Resolve `<dmoId>` with `d360_dmo_get` (`dataModelObjectName`). Multi-DMO counts list one DMO link
-per primary fact DMO. For pure DMO/SQL counts with no MarketSegment, set:
+per primary fact DMO. **Always emit the Data 360 segment link** on count and create. Look up a
+matching MarketSegment on a count; if none exists yet:
 
 ```text
-**Data 360 segment link:** N/A — DMO count only (no MarketSegment)
+**Data 360 segment link:** N/A — no MarketSegment for this count yet
+https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list
 ```
 
 Copy-paste prompts that name dataspace + populated DMOs (low clarifying steps):
@@ -140,7 +142,8 @@ Delta: PENDING
 > **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 
 **Data 360 DMO link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view
-**Data 360 segment link:** N/A — DMO count only (no MarketSegment)
+**Data 360 segment link:** N/A — no MarketSegment for this count yet
+https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list
 ```
 
 ---

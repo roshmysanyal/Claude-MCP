@@ -570,8 +570,8 @@ const PROMPTS = [
     label: "Create · Premarin opt-in",
     question: "Build D2C Premarin opted-in segment + dual-count",
     prompt:
-      "For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Before you create it, show me the expected count. After create, give me the Data 360 segment count and the Snowflake source count for validation. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
-    filters: "CIA Consumer Marketable Email + BrandProfile PREMARIN + ContactPointConsent IN",
+      "For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Before you create it, show me the expected count. After create, give me the Data 360 segment count and the Snowflake source count for validation. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+    filters: "Ask CIA, then BrandProfile PREMARIN + ContactPointConsent IN. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
@@ -583,8 +583,8 @@ const PROMPTS = [
     label: "Create · opt-in + email",
     question: "Build D2C opted-in + email segment + dual-count",
     prompt:
-      "For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Confirm the filters, create the segment, then compare the Data 360 count to the Snowflake source count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
-    filters: "CIA Consumer Marketable Email + ContactPointConsent IN + ContactPointEmail",
+      "For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Confirm the filters, create the segment, then compare the Data 360 count to the Snowflake source count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+    filters: "Ask CIA, then ContactPointConsent IN + ContactPointEmail. Publish P2Y.",
     source: DTC_CONSENT_SOURCE,
   },
   {
@@ -596,8 +596,8 @@ const PROMPTS = [
     label: "Create · Premarin opt-in + email",
     question: "Build D2C Premarin marketable segment + dual-count",
     prompt:
-      "For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Share the Data 360 count and the matching Snowflake validation count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
-    filters: "CIA Consumer Marketable Email + BrandProfile PREMARIN + Consent IN + ContactPointEmail",
+      "For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Share the Data 360 count and the matching Snowflake validation count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+    filters: "Ask CIA, then BrandProfile PREMARIN + Consent IN + ContactPointEmail. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
@@ -609,8 +609,8 @@ const PROMPTS = [
     label: "Create · Comirnaty opt-in",
     question: "Build D2C Comirnaty opted-in segment + dual-count",
     prompt:
-      "For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Report Data 360 vs Snowflake counts after the segment is created. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
-    filters: "CIA Consumer Marketable Email + BrandProfile COMIRNATY + Consent IN",
+      "For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Report Data 360 vs Snowflake counts after the segment is created. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+    filters: "Ask CIA, then BrandProfile COMIRNATY + Consent IN. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
@@ -622,8 +622,8 @@ const PROMPTS = [
     label: "Create · Premarin preference IN",
     question: "Build D2C Premarin preference-IN segment + dual-count",
     prompt:
-      "For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Validate the member count in Data 360 against Snowflake. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
-    filters: "CIA Consumer Marketable Email + ConsentPreference PREMARIN IN",
+      "For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Validate the member count in Data 360 against Snowflake. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+    filters: "Ask CIA, then ConsentPreference PREMARIN IN. Publish P2Y.",
     source: DTC_PREF_SOURCE,
   },
 ];
@@ -659,7 +659,7 @@ const FAQ_GROUPS = [
   {
     label: "Create segment + dual count",
     className: "tag-dual",
-    note: "Create a D2C segment (CIA Consumer Marketable Email nested first), then compare Data 360 vs Snowflake",
+    note: "Create a D2C segment (ask CIA first; publish with lookback P2Y), then compare Data 360 vs Snowflake",
     createFlowOnly: true,
   },
 ];
@@ -833,7 +833,7 @@ function renderFaqs() {
           <p class="faq-answer"><strong>Filters:</strong> ${escapeHtml(entry.filters)}</p>
           ${
             entry.createFlow
-              ? '<p class="faq-answer"><strong>Agent flow:</strong> count → confirm → create D2C segment (CIA Consumer Marketable Email nested first) → dual-report Data 360 vs Snowflake.</p>'
+              ? '<p class="faq-answer"><strong>Agent flow:</strong> count → ask CIA → confirm → create D2C segment (lookback P2Y) → dual-report Data 360 vs Snowflake.</p>'
               : ""
           }
           <div class="faq-actions">

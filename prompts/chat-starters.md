@@ -8,6 +8,9 @@ dual report (no Snowflake MCP probe).
 > **Note:** Snowflake is not queried via MCP. The agent returns the live Data 360 count plus
 > Snowflake validation SQL (PENDING) for you to run in Snowflake. Full prompt bank:
 > [example-prompts.md](example-prompts.md).
+>
+> **D2C / patient segment create:** the agent must ask whether to include CIA Consumer Marketable
+> Email, and every segment is published with lookback **P2Y** (2 years).
 
 ---
 
