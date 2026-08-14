@@ -5,8 +5,37 @@ concrete Skill edits. Re-run only the failures until they pass twice.
 
 **Companion:** Fixed walkthrough with starter prompts —
 [skill-iteration-demo.md](skill-iteration-demo.md).  
+**Quick CSV batch (Count / Segment flags):** [testing-template.csv](testing-template.csv) ·
+paste blocks: [testing-prompts.md](testing-prompts.md).  
+**Pre-filled 8-prompt mixed run:** [prompt-test-run-2026-08-14.md](prompt-test-run-2026-08-14.md).  
 **Not** the leadership dual-count room script —
 [../usecase-prompts/demo-run-sheet.md](../usecase-prompts/demo-run-sheet.md).
+
+---
+
+## Quick CSV mode (fast iterate)
+
+Use [testing-template.csv](testing-template.csv) when you only need to say “count” vs “count + segment”
+per prompt:
+
+| Column | Meaning |
+| --- | --- |
+| **Prompt** | Exact paste text |
+| **Count** | `TRUE` = expect a Recipe A count (English + Query) |
+| **Segment** | `TRUE` = also build a segment after the count; `FALSE` = count only |
+
+Example row intent:
+
+```text
+Prompt: Patients who have a Nurtec copay card…
+Count: TRUE
+Segment: FALSE
+```
+
+Paste **one Prompt per turn**. Honor **Count** / **Segment** — do not invent a create when
+`Segment: FALSE`. Expect everyday English + the **Query** (Data 360 only). No Snowflake count,
+matching table, PENDING, Delta, or dual-report. Score in the cards below (or just mark Pass/Fail
+on the CSV Notes column).
 
 ---
 

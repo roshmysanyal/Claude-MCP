@@ -1,0 +1,48 @@
+Prompt,Count,Segment,Notes
+"Patients who have at least one copay card with a card number filled in — just the six test customers on the allowlist.",TRUE,FALSE,copay allowlist
+"Patients who are opted in to Brand or Topic ALL communications and who are a Caregiver Prospect or Patient or on a prescription program or on medication or acquired in the last 24 months.",TRUE,FALSE,RX program style
+"Patients who have a copay card with a card number on file for Nurtec Xeljanz Paxlovid Eucrisa or Lorbrena acquired in the last 36 months with activity in the last 36 months.",TRUE,FALSE,copay brands + recency
+"Patients who opened or clicked a journey email or had a headquarter email sent opened clicked or delivered in the last year.",TRUE,FALSE,journey or HQ email
+"How many doctors opened a headquarter email in the last 90 days?",TRUE,FALSE,HQ opens
+"How many doctors clicked a headquarter email in the last 90 days?",TRUE,FALSE,HQ clicks
+"How many doctors were sent a headquarter email?",TRUE,FALSE,HQ sends
+"How many doctors opened a Paxlovid headquarter email in the last 90 days?",TRUE,FALSE,Paxlovid opens
+"How many doctors clicked a Paxlovid headquarter email in the last 90 days?",TRUE,FALSE,Paxlovid clicks
+"How many doctors opened an Abrysvo headquarter email in the last 90 days?",TRUE,FALSE,Abrysvo opens
+"How many doctors opened a Nurtec headquarter email in the last 90 days?",TRUE,FALSE,Nurtec opens
+"How many doctors opened a Comirnaty headquarter email in the last 90 days?",TRUE,FALSE,Comirnaty opens
+"How many doctors have Eliquis prescribing volume greater than zero?",TRUE,FALSE,Eliquis volume > 0
+"How many doctors have Eliquis prescribing volume greater than 10?",TRUE,FALSE,Eliquis volume > 10
+"How many doctors are in the profile?",TRUE,FALSE,doctor profiles
+"How many resolved doctor profiles are there?",TRUE,FALSE,resolved doctors
+"How many doctors have an email on file?",TRUE,FALSE,doctor email on file
+"How many doctors have a party identification record?",TRUE,FALSE,party identification
+"How many doctors opened an email?",TRUE,FALSE,email opens
+"How many doctors clicked an email?",TRUE,FALSE,email clicks
+"How many doctors were sent an email?",TRUE,FALSE,email sends
+"How many doctors appear on the header-unsubscribe brand list?",TRUE,FALSE,header unsubscribe
+"How many patients are on the Premarin brand profile?",TRUE,FALSE,Premarin brand
+"How many patients are on the Comirnaty brand profile?",TRUE,FALSE,Comirnaty brand
+"How many patients are on the Litfulo brand profile?",TRUE,FALSE,Litfulo brand
+"How many patients are on the Paxlovid brand profile?",TRUE,FALSE,Paxlovid brand
+"How many patients are on the Nurtec brand profile?",TRUE,FALSE,Nurtec brand
+"How many patients have any brand profile?",TRUE,FALSE,any brand
+"How many patients are opted in?",TRUE,FALSE,opted in
+"How many patients have a consent preference on file?",TRUE,FALSE,consent preference
+"How many patients are in the profile?",TRUE,FALSE,patient profiles
+"How many resolved patient profiles are there?",TRUE,FALSE,resolved patients
+"How many patients have an email on file?",TRUE,FALSE,patient email on file
+"How many Premarin patients are opted in?",TRUE,FALSE,Premarin + opted in
+"How many Comirnaty patients are opted in?",TRUE,FALSE,Comirnaty + opted in
+"How many Litfulo patients are opted in?",TRUE,FALSE,Litfulo + opted in
+"How many Paxlovid patients are opted in?",TRUE,FALSE,Paxlovid + opted in
+"How many Nurtec patients are opted in?",TRUE,FALSE,Nurtec + opted in
+"How many Litfulo patients have an email on file?",TRUE,FALSE,Litfulo + email
+"How many opted-in patients have an email on file?",TRUE,FALSE,opted in + email
+"How many Premarin patients are opted in and have an email on file?",TRUE,FALSE,Premarin + opted in + email
+"How many patients have Premarin consent preference set to opted in?",TRUE,FALSE,Premarin preference opted in
+"For patients build a Premarin audience who are opted in to communications. Show the expected count first then create the segment.",TRUE,TRUE,create Premarin opted in
+"For patients create an audience of people who are opted in and have an email on file. Confirm the filters then create the segment.",TRUE,TRUE,create opted in + email
+"For patients build a Premarin audience who are opted in and have an email address. Share the count then create the segment.",TRUE,TRUE,create Premarin opted in + email
+"For patients create a Comirnaty audience who have opted in. After create tell me how many people are in the audience.",TRUE,TRUE,create Comirnaty opted in
+"For patients build an audience whose Premarin consent preference is opted in. Show the count then create the segment.",TRUE,TRUE,create Premarin preference
