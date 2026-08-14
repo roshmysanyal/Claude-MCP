@@ -1,11 +1,11 @@
 ---
 description: >-
-  Data 360 count dual-report + chat starters. Use on every HCP/DTC count and when
-  the user starts a chat or asks what prompts to run.
+  Data 360 counts in natural English + the query. Use on every HCP/DTC count and
+  when the user starts a chat or asks what prompts to run.
 alwaysApply: true
 ---
 
-# Data 360 dual-report & chat starters
+# Data 360 count answers & chat starters
 
 ## When the user starts a chat or asks what to run
 
@@ -14,31 +14,23 @@ Offer **suggestion prompts** from [prompts/chat-starters.md](../../prompts/chat-
 Prefer prompts that already name **dataspace + populated DMO(s)** so you do not re-ask
 routing questions.
 
-Recommended first offers (one HCP Stage + one DTC):
+Recommended first offers (one doctors/Stage + one patients/DTC), in everyday language:
 
-1. STG-US HQ email opens 90d on `stg_Headquarter_Email_Engagement__dlm`
-2. DTC Premarin brand + opt-in on `DTC_BrandProfile__dlm` + `DTC_ContactPointConsent__dlm`
+1. How many doctors opened a headquarter email in the last 90 days? (Stage)
+2. How many patients have Premarin on their brand profile and are opted in? (DTC)
 
 ## Every count answer (HCP and DTC)
 
+Answers are for **non-technical readers**. Do not show a Snowflake count, matching table,
+PENDING, or Delta.
+
 1. **Query Data 360 only** for the live count. Do **not** check Snowflake MCP connectivity,
    call `mcp_auth` on Snowflake, or probe the Snowflake connector.
-2. Dual-report **table**: Data 360 row (live count) + Snowflake source row marked **PENDING**
-   (or **N/A** if the stream is not Snowflake-fed) + Delta **PENDING** / **N/A**.
-3. Always include the exact **Snowflake validation SQL** under the table (same filters / person
-   grain as the D360 count).
-4. Always include this note:
-
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
-
-5. Always include **links** under the table:
-   - **Data 360 DMO link** for each primary fact DMO in the count — resolve `id` with
-     `d360_dmo_get`, then
-     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view`
-     (swap host if the org context differs).
-   - **Data 360 segment link** when the ask is a segment create/update/status **or** a matching
-     MarketSegment exists:
-     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`.
-     For pure DMO/SQL counts with no MarketSegment, write
-     `Data 360 segment link: N/A — DMO count only (no MarketSegment)`.
-6. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email engagement audiences).
+2. Lead with **natural English** — doctors or patients, what was asked, and the number.
+   Example: *There are 94,853 doctors in Stage who opened a Comirnaty headquarter email
+   in the last 90 days.*
+3. Then put the **Query** — the Data 360 SQL that produced that number. Do not hide it.
+4. If this is a segment create/update/status and a MarketSegment exists, add a simple
+   **Open this audience** link. Skip N/A segment lines on a plain count.
+5. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email
+   engagement audiences).

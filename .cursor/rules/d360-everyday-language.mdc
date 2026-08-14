@@ -1,0 +1,24 @@
+---
+description: >-
+  Everyday language routing: doctors = HCP, patients/consumers = DTC. Answer in
+  the same general language the user used.
+alwaysApply: true
+---
+
+# Everyday language (doctors vs patients)
+
+Users ask in **general language**. Do not require DMO names, dataspace codes, or “HCP / DTC”.
+Saying **patients** is enough — route and query without asking them to name DTC.
+
+| They say | Route |
+| --- | --- |
+| **doctors**, physicians, HCPs, US customers | HCP → Dev / Stage / Prod (**ask those three** if missing) |
+| **patients**, consumers | **`DTC` automatically** — do **not** ask HCP vs DTC, and do **not** ask which dataspace |
+| people / customers / audience (no noun) | Ask **“Doctors or patients?”** only |
+
+Restate the ask in their words before querying. Lead answers with *doctors* or *patients*,
+not API names. After the English sentence, put the **Query** (Data 360 SQL). Never show a
+Snowflake count, matching table, PENDING, or Delta.
+
+Patient **segment create/update:** still ask CIA (see `d360-dtc-cia-lookback.mdc`).
+Every publish uses lookback **P2Y**.

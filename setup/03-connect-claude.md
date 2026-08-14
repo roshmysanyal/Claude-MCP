@@ -108,4 +108,6 @@ data-access contract.
 
 ---
 
-**Next:** back to the [runbook](../README.md#phase-0--pre-poc-setup-days-15), Phase 0.
+**Next:** hand this setup to other users via
+[05-share-with-users-cursor-claude.md](05-share-with-users-cursor-claude.md), or return to the
+[runbook](../README.md#phase-0--pre-poc-setup-days-15), Phase 0.

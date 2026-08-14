@@ -9,8 +9,9 @@ Recipe B). For counts, see the query path (Skill Recipe A).
 
 ## Dataspace (required — follows the routed model)
 
-**Audience rule:** US Customer Data spaces (`DEV-US` / `STG-US` / `PRD-US`) = **HCP**. Patient
-spaces (`DTC` / `PRD-PAT`) = **patient / D2C**. Never cross those.
+**Audience rule:** Users say **doctors** or **patients**, not dataspace codes.
+- **Doctors / HCPs / US customers** → US Customer Data spaces (`DEV-US` / `STG-US` / `PRD-US`)
+- **Patients / consumers** → `DTC` (never `PRD-PAT` — empty). Never cross those.
 
 Route by audience first, then take the dataspace from that model's `defaults.dataspace` and each
 entity's `dataspace` (see [using-the-data-model.md](using-the-data-model.md)):
@@ -44,9 +45,9 @@ Full catalog: [dataModel-index.yaml](dataModel-index.yaml).
 
 ## CIA Consumer Marketable Email base (patient / D2C — ask, then nest if yes)
 
-For every consumer/patient/D2C/DTC **create or update**, ask first:
+For every consumer/patient/D2C/DTC **create or update**, ask first in everyday language:
 
-> Include CIA Consumer Marketable Email as the first membership filter?
+> Should this patient audience also be limited to CIA Consumer Marketable Email?
 
 Wait for **yes** or **no**. Do not nest CIA and do not omit it without that answer.
 
@@ -221,8 +222,9 @@ contained). Build each to its own rules; don't reuse one for the other.
 | Members | **2,504** published (`NoRefresh`); live SQL matching `includeCriteria` is larger — re-count before rebuild |
 | Lookback | `P2Y` |
 
-**Use case (description):** Target Prospects, Caregivers, or Patients on medication or a
-prescription program, enrolled in the last 3 years, and opted in to communications.
+**Use case (everyday language):** How many patients are opted in to Brand or Topic ALL
+communications, and who are a caregiver, prospect, or patient, or on a prescription program,
+or on medication, or acquired in the last 24 months?
 
 **How the org actually built it** (`includeCriteria` — trust this over the description when they
 disagree):
@@ -309,8 +311,8 @@ card numbers into answers** (PII). A Skill rebuild from natural language uses Un
 
 ### Natural language
 
-> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
-> on file.
+> How many patients have at least one copay card with a card number filled in? Limit it to the
+> six test customer keys (do not list the keys).
 
 ### Step 1 — restated bullets
 
@@ -404,9 +406,8 @@ AND
 
 ### Natural language
 
-> For patients in DTC, build a D2C segment of consumers who have a copay card with a card number
-> on file for NURTEC, XELJANZ, PAXLOVID, EUCRISA, or LORBRENA, acquired in the last 36 months,
-> with activity in the last 36 months.
+> Patients who have a copay card with a card number on file for NURTEC, XELJANZ, PAXLOVID,
+> EUCRISA, or LORBRENA, acquired in the last 36 months, with activity in the last 36 months.
 
 ### Count SQL (Recipe A, UI-equivalent — no CIA)
 
@@ -488,8 +489,8 @@ rebuilding.
 
 ### Natural language
 
-> For patients in DTC, build a D2C segment of consumers who opened or clicked an SFMC journey
-> email, or had a headquarter email send / open / click / delivered in the last year.
+> Consumers who opened or clicked a journey email, or who had a headquarter email send, open,
+> click, or delivered in the last year.
 
 ### Step 1 — restated bullets
 
@@ -553,9 +554,9 @@ Without CIA (UI-equivalent live count), drop the first `IN` nest. HQ-only throug
 Same `WHERE` as the count. Top-level select is **only** `DTC_UnifiedIndividualDtc__dlm.Id__c`.
 No `COUNT`, no `DISTINCT`, no aliases.
 
-Snowflake dual-report: HQ → stream `DTC_OCL_HEADQUARTER_EMAIL` /
-`CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OCL_HEADQUARTER_EMAIL` (PENDING). SFMC Email Engagement is
-**N/A** (not Snowflake-fed).
+Snowflake mapping (technical only — do not put a Snowflake count in the user-facing answer): HQ → stream `DTC_OCL_HEADQUARTER_EMAIL` /
+`CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OCL_HEADQUARTER_EMAIL`. SFMC Email Engagement is
+not Snowflake-fed.
 
 ---
 
@@ -640,21 +641,19 @@ Do not confuse these states:
 An ACTIVE activation **target** alone does not mean a segment is activated. Never call
 `d360_segment_member_list` merely to prove the count; report counts and lifecycle metadata only.
 
-Required output:
+Required output (natural English + Query — no Snowflake count or matching table):
 
 ```text
-Segment: <display name> (<API name>)
-**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
-**Data 360 DMO link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MktDataModelObject/<dmoId>/view
-Segment member count: <N | PENDING>
-**Data 360 count:** <N>
-**Snowflake source count:** PENDING | N/A
-**Snowflake validation SQL:** <exact SQL>
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
-Publication status: <returned status>
-Activation status: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
+This audience currently has <N> <doctors|patients>.
+
+**Query**
+<the Data 360 SQL or membership SQL for this segment>
+
+Open this audience: https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
+
+Publication: <returned status>
+Activation: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
 ```
 
-Always emit **Snowflake validation SQL** for the segment's primary DMO/filters (do **not** probe
-Snowflake MCP). Always include the **Data 360 segment link** and **Data 360 DMO link** after create
-and on every segment count/status read. Resolve DMO id with `d360_dmo_get`.
+Always include **Open this audience** after create and on every segment count/status read.
+Do **not** show a Snowflake count, PENDING match, Delta, or dual-report.

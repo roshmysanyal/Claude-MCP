@@ -7,13 +7,10 @@ Lightweight browser UI for POC demos. Two things only:
   count is greater than zero. Each one expands to show the count, the backing DMO and the
   filters, with **Run use case** and **Copy prompt** buttons.
 
-**Run use case** renders the dual report inline: the Data 360 count from the latest
-agent-refreshed snapshot, plus the Snowflake source table and stream for that DMO marked
-**PENDING** (the browser does not query Snowflake) or **N/A** for CRM-sourced DMOs. To re-query
-Data 360 live, copy the prompt into Cursor and run it with the governed Skill — the agent returns
-the live D360 count, Snowflake validation SQL, note, and Data 360 DMO / segment links.
+**Run use case** shows the snapshot count in plain language. To re-query Data 360 live,
+copy the prompt into Cursor and run it with the governed Skill — the agent answers in
+everyday English and puts the Query. It does **not** include a Snowflake count or matching table.
 
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count is live from Data 360.  
 > Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md). Copied FAQ prompts name **dataspace + populated DMO** so Cursor skips clarifying questions.
 
 ## Open it
@@ -40,7 +37,7 @@ filtered out of the FAQ list automatically.
 
 | Does | Does not |
 | --- | --- |
-| Show live D360 counts per pullable use case | Query Data 360 or Snowflake from the browser |
+| Show live D360 counts per pullable use case | Query Data 360 from the browser |
 | Group FAQs by dataspace and filter them | Create or activate segments |
 | Map each use case to its backing DMO | Replace the governed Skill |
 | Copy a prompt for Cursor | |

@@ -11,7 +11,7 @@ alwaysApply: true
 
 Whenever you **build** or **update** a patient/consumer/D2C/DTC segment, **ask before writing:**
 
-> Include CIA Consumer Marketable Email as the first membership filter?
+> Should this patient audience also be limited to CIA Consumer Marketable Email?
 
 - Do **not** nest CIA silently and do **not** skip it silently.
 - **Yes** → nest CIA first via `DTC_UnifiedIndividualDtc_SM_1780343389__dlm`

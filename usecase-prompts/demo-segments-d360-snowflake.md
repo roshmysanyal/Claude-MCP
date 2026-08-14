@@ -1,4 +1,8 @@
-# Demo segments — D360 count + Snowflake validation
+# Demo segments — D360 count + warehouse SQL (technical)
+
+> **Not for marketer-facing chat.** Cursor answers are everyday English + the Data 360 Query.
+> This file is a warehouse SQL cookbook for architects. Do not paste Snowflake counts or matching
+> tables into the chat.
 
 **Dataspace:** `STG_US` (Stage)  
 **Why Stage:** Profile / website / consent / NBRx DMOs are empty in Dev & Prod today.

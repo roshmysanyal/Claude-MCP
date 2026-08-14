@@ -197,31 +197,31 @@ const PROMPTS = [
 
   {
     id: "stg-hq-opened-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · OPENED · 90d",
     question: "HQ email opens — last 90 days",
     prompt:
-      "In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Return the dual-report table: Data 360 count + Snowflake source count for stream STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. If Snowflake cannot be tallied, still show the Snowflake validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters:
       "EngagementChannelAction__c = 'OPENED' AND EngagementDateTime__c >= CURRENT_DATE - 90 days",
     source: HQ_SOURCE,
   },
   {
     id: "stg-hq-clicked-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · CLICKED · 90d",
     question: "HQ email clicks — last 90 days",
     prompt:
-      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs who clicked a headquarter email in the last 90 days on DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'CLICKED'). No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_OCL_HEADQUARTER_EMAIL (CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL), including validation SQL if PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs who clicked a headquarter email in the last 90 days on DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'CLICKED'). No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters:
       "EngagementChannelAction__c = 'CLICKED' AND EngagementDateTime__c >= CURRENT_DATE - 90 days",
     source: HQ_SOURCE,
   },
   {
     id: "stg-hq-sent",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · SENT",
     question: "HQ emails sent (distinct HCPs)",
@@ -231,7 +231,7 @@ const PROMPTS = [
   },
   {
     id: "stg-hq-nurtec-opened-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · NURTEC · OPENED",
     question: "Nurtec HQ opens — last 90 days",
@@ -241,7 +241,7 @@ const PROMPTS = [
   },
   {
     id: "stg-hq-comirnaty-opened-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · COMIRNATY · OPENED",
     question: "Comirnaty HQ opens — last 90 days",
@@ -251,18 +251,18 @@ const PROMPTS = [
   },
   {
     id: "stg-hq-paxlovid-opened-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · PAXLOVID · OPENED",
     question: "Paxlovid HQ opens — last 90 days",
     prompt:
-      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs who opened a Paxlovid headquarter email in the last 90 days on populated DMO stg_Headquarter_Email_Engagement__dlm (Brand__c = 'PAXLOVID', EngagementChannelAction__c = 'OPENED'). No clarifying questions. Dual-report Data 360 + Snowflake source for STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs who opened a Paxlovid headquarter email in the last 90 days on populated DMO stg_Headquarter_Email_Engagement__dlm (Brand__c = 'PAXLOVID', EngagementChannelAction__c = 'OPENED'). No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "Brand__c = 'PAXLOVID' AND EngagementChannelAction__c = 'OPENED' AND last 90 days",
     source: HQ_SOURCE,
   },
   {
     id: "stg-hq-paxlovid-clicked-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · PAXLOVID · CLICKED",
     question: "Paxlovid HQ clicks — last 90 days",
@@ -272,7 +272,7 @@ const PROMPTS = [
   },
   {
     id: "stg-hq-abrysvo-opened-90d",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "HQ email · ABRYSVO · OPENED",
     question: "Abrysvo HQ opens — last 90 days",
@@ -282,18 +282,18 @@ const PROMPTS = [
   },
   {
     id: "stg-iqvia-eliquis-nrx",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "IQVIA · ELIQUIS NRx > 0",
     question: "Eliquis IQVIA NRx > 0",
     prompt:
-      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING (include SQL if PENDING). Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "BrandName__c = 'ELIQUIS' AND NRXVolume__c > 0",
     source: IQVIA_SOURCE,
   },
   {
     id: "stg-iqvia-eliquis-nrx-gt10",
-    tag: "D360 and Snowflake count",
+    tag: "Stage count",
     dataspace: "STG_US",
     label: "IQVIA · ELIQUIS NRx > 10",
     question: "Eliquis IQVIA NRx > 10 (high writers)",
@@ -361,7 +361,7 @@ const PROMPTS = [
     label: "Brand · Premarin",
     question: "Premarin brand-profile consumers",
     prompt:
-      "In dataspace DTC (patient/D2C), count distinct consumers with Brand__c = 'PREMARIN' on populated DMO DTC_BrandProfile__dlm. Do not ask clarifying questions. Dual-report Data 360 count + Snowflake source for stream DTC_BRAND_PROFILE → CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES (BRAND_NAME). If Snowflake cannot run, show validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace DTC (patient/D2C), count distinct consumers with Brand__c = 'PREMARIN' on populated DMO DTC_BrandProfile__dlm. Do not ask clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "Brand__c = 'PREMARIN'",
     source: DTC_BRAND_SOURCE,
   },
@@ -422,7 +422,7 @@ const PROMPTS = [
     label: "Consent · opted in",
     question: "Opted-in consumers (IN)",
     prompt:
-      "In dataspace DTC (patient/D2C), count distinct consumers with ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream DTC_OT_EMAIL_CONSENT → CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_EMAIL_CONSENTS (CONSENT_VALUE). Include validation SQL if PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace DTC (patient/D2C), count distinct consumers with ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm. No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "ConsentStatusId__c = 'IN'",
     source: DTC_CONSENT_SOURCE,
   },
@@ -473,7 +473,7 @@ const PROMPTS = [
     label: "Combined · Premarin + opt-in",
     question: "Premarin brand-profile consumers who are opted in",
     prompt:
-      "In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Dual-report Data 360 + Snowflake validation against DTC_BRAND_PROFILES joined to DTC_OT_EMAIL_CONSENTS in CDP_US_DTC_STG_DB.DTC_DC_IN. If Snowflake is unreachable, return the exact validation SQL and mark PENDING. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "BrandProfile Brand__c='PREMARIN' + ContactPointConsent ConsentStatusId__c='IN'",
     source: DTC_BRAND_SOURCE,
   },
@@ -544,7 +544,7 @@ const PROMPTS = [
     label: "Combined · Premarin + opt-in + email",
     question: "Premarin opted-in consumers with email",
     prompt:
-      "In dataspace DTC (patient/D2C), count distinct consumers with PREMARIN on DTC_BrandProfile__dlm, ConsentStatusId__c = 'IN' on DTC_ContactPointConsent__dlm, and a row on populated DMO DTC_ContactPointEmail__dlm. No clarifying questions. Dual-report Data 360 + Snowflake SQL for brand/consent streams in CDP_US_DTC_STG_DB.DTC_DC_IN (PENDING + SQL if Snowflake cannot tally). Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace DTC (patient/D2C), count distinct consumers with PREMARIN on DTC_BrandProfile__dlm, ConsentStatusId__c = 'IN' on DTC_ContactPointConsent__dlm, and a row on populated DMO DTC_ContactPointEmail__dlm. No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "BrandProfile PREMARIN + Consent IN + ContactPointEmail",
     source: DTC_BRAND_SOURCE,
   },
@@ -555,99 +555,99 @@ const PROMPTS = [
     label: "Combined · Premarin preference IN",
     question: "Consumers with Premarin consent preference IN",
     prompt:
-      "In dataspace DTC (patient/D2C), count consumers with PreferenceName__c = 'PREMARIN' and PreferenceValue__c = 'IN' on populated DMO DTC_ConsentPreference__dlm (with DTC_ContactPointConsent__dlm as needed). No clarifying questions. Dual-report Data 360 vs Snowflake stream DTC_OT_CONSENT_PREFERENCE → CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_OT_CONSENT_PREFERENCES. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "In dataspace DTC (patient/D2C), count consumers with PreferenceName__c = 'PREMARIN' and PreferenceValue__c = 'IN' on populated DMO DTC_ConsentPreference__dlm (with DTC_ContactPointConsent__dlm as needed). No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.",
     filters: "ConsentPreference PreferenceName=PREMARIN PreferenceValue=IN + Consent",
     source: DTC_PREF_SOURCE,
   },
 
-  // Business-language: create segment + dual D360/Snowflake count
+  // Business-language: create a D2C segment
   {
     id: "biz-dtc-premarin-optin-create",
-    tag: "Create + dual count",
+    tag: "Create segment",
     dataspace: "DTC",
     createFlow: true,
     countId: "dtc-premarin-optin",
     label: "Create · Premarin opt-in",
-    question: "Build D2C Premarin opted-in segment + dual-count",
+    question: "Build D2C Premarin opted-in segment",
     prompt:
-      "For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Before you create it, show me the expected count. After create, give me the Data 360 segment count and the Snowflake source count for validation. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "For patients in DTC: build a D2C segment of Premarin consumers who are opted in to communications. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Before you create it, show me the expected count. After create, tell me how many people are in the audience in everyday English and put the Query.",
     filters: "Ask CIA, then BrandProfile PREMARIN + ContactPointConsent IN. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
     id: "biz-dtc-optin-email-create",
-    tag: "Create + dual count",
+    tag: "Create segment",
     dataspace: "DTC",
     createFlow: true,
     countId: "dtc-optin-email",
     label: "Create · opt-in + email",
-    question: "Build D2C opted-in + email segment + dual-count",
+    question: "Build D2C opted-in + email segment",
     prompt:
-      "For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Confirm the filters, create the segment, then compare the Data 360 count to the Snowflake source count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "For patients in DTC: create a D2C segment of consumers who are opted in and have an email on file. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Confirm the filters, create the segment, then tell me how many people are in the audience in everyday English and put the Query.",
     filters: "Ask CIA, then ContactPointConsent IN + ContactPointEmail. Publish P2Y.",
     source: DTC_CONSENT_SOURCE,
   },
   {
     id: "biz-dtc-premarin-optin-email-create",
-    tag: "Create + dual count",
+    tag: "Create segment",
     dataspace: "DTC",
     createFlow: true,
     countId: "dtc-premarin-optin-email",
     label: "Create · Premarin opt-in + email",
-    question: "Build D2C Premarin marketable segment + dual-count",
+    question: "Build D2C Premarin marketable segment",
     prompt:
-      "For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Share the Data 360 count and the matching Snowflake validation count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "For patients in DTC: build a D2C segment of Premarin brand consumers who are opted in and have an email address. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Share the count in everyday English and put the Query.",
     filters: "Ask CIA, then BrandProfile PREMARIN + Consent IN + ContactPointEmail. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
     id: "biz-dtc-comirnaty-optin-create",
-    tag: "Create + dual count",
+    tag: "Create segment",
     dataspace: "DTC",
     createFlow: true,
     countId: "dtc-comirnaty-optin",
     label: "Create · Comirnaty opt-in",
-    question: "Build D2C Comirnaty opted-in segment + dual-count",
+    question: "Build D2C Comirnaty opted-in segment",
     prompt:
-      "For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Report Data 360 vs Snowflake counts after the segment is created. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "For patients in DTC: create a D2C segment of Comirnaty consumers who have opted in. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. After the segment is created, tell me how many people are in the audience in everyday English and put the Query.",
     filters: "Ask CIA, then BrandProfile COMIRNATY + Consent IN. Publish P2Y.",
     source: DTC_BRAND_SOURCE,
   },
   {
     id: "biz-dtc-premarin-pref-create",
-    tag: "Create + dual count",
+    tag: "Create segment",
     dataspace: "DTC",
     createFlow: true,
     countId: "dtc-premarin-pref-in",
     label: "Create · Premarin preference IN",
-    question: "Build D2C Premarin preference-IN segment + dual-count",
+    question: "Build D2C Premarin preference-IN segment",
     prompt:
-      "For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Validate the member count in Data 360 against Snowflake. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.",
+      "For patients in DTC: build a D2C segment of consumers whose Premarin consent preference is set to IN. Ask me first whether to include CIA Consumer Marketable Email. Publish with lookback P2Y. Tell me how many people are in the audience in everyday English and put the Query.",
     filters: "Ask CIA, then ConsentPreference PREMARIN IN. Publish P2Y.",
     source: DTC_PREF_SOURCE,
   },
 ];
 
-/** One FAQ group per dataspace, plus the create + dual-count business prompts. */
+/** One FAQ group per dataspace, plus the create-segment business prompts. */
 const FAQ_GROUPS = [
   {
     dataspace: "Development",
     label: "DEV-US (HCP)",
     className: "tag-dev",
-    note: "HCP · identity & CRM email (Snowflake N/A for CRM)",
+    note: "HCP · identity and CRM email",
   },
   {
     dataspace: "STG_US",
     label: "STG-US (HCP)",
     className: "tag-dual",
-    note: "HCP · HQ email & IQVIA — ACTIVE Snowflake streams",
+    note: "HCP · HQ email and IQVIA",
     excludeCreateFlow: true,
   },
   {
     dataspace: "PRD_US",
     label: "PRD-US (HCP)",
     className: "tag-prod",
-    note: "HCP · identity & CRM email (Snowflake N/A for CRM)",
+    note: "HCP · identity and CRM email",
   },
   {
     dataspace: "DTC",
@@ -659,7 +659,7 @@ const FAQ_GROUPS = [
   {
     label: "Create segment + dual count",
     className: "tag-dual",
-    note: "Create a D2C segment (ask CIA first; publish with lookback P2Y), then compare Data 360 vs Snowflake",
+    note: "Create a D2C segment (ask CIA first; publish with lookback P2Y). Answer in everyday English and put the Query.",
     createFlowOnly: true,
   },
 ];
@@ -693,9 +693,6 @@ function formatCount(n) {
 }
 
 function countBadge(entry) {
-  if (entry.tag === "D360 and Snowflake count" || (entry.source && entry.source.stream)) {
-    return '<span class="badge badge-dual">D360 + Snowflake</span>';
-  }
   return '<span class="badge badge-live">live</span>';
 }
 
@@ -736,44 +733,20 @@ function dataspaceLabel(dataspace) {
 }
 
 /**
- * Renders the dual report for one use case. The Data 360 side comes from the
- * agent-refreshed snapshot; Snowflake stays PENDING because the browser cannot
- * reach the warehouse.
+ * Renders the snapshot count in plain language. Copy the prompt into Cursor
+ * to get the live Data 360 Query.
  */
 function resultHtml(entry) {
-  const source = entry.source || {};
-  const hasStream = Boolean(source.table && source.stream);
-  const snowValue = hasStream
-    ? '<p class="count-value pending">PENDING — run in warehouse</p>'
-    : '<p class="count-value pending">N/A — connector is not Snowflake</p>';
-  const snowMeta = hasStream
-    ? `Source: ${escapeHtml(source.database)}.${escapeHtml(source.schema)}.${escapeHtml(source.table)} · Stream: ${escapeHtml(source.stream)}`
-    : "This DMO is CRM-sourced — use the OCL benchmark instead of a stream comparison.";
-  const delta = hasStream
-    ? "Delta: PENDING — copy the prompt into Cursor and let the Skill tally the Snowflake source count. Note: Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING."
-    : "Delta: N/A for stream parity — validate with the OCL benchmark.";
-
+  const who = entry.dataspace === "DTC" ? "patients" : "doctors";
+  const n = formatCount(countFor(entry));
+  const q = entry.question || "matched this audience";
   return `
     <div class="count-block d360">
-      <p class="count-label">Data 360 count</p>
-      <p class="count-value">${escapeHtml(formatCount(countFor(entry)))}</p>
-      <p class="count-meta">
-        Dataspace ${escapeHtml(dataspaceLabel(entry.dataspace))} · DMO <code>${escapeHtml(source.dmo)}</code>
-        · as of ${escapeHtml(refreshedLabel())}
-      </p>
+      <p class="count-label">Result</p>
+      <p class="count-value">${escapeHtml(n)}</p>
+      <p class="count-meta">There are ${escapeHtml(n)} ${who} who ${escapeHtml(q.toLowerCase())} (snapshot as of ${escapeHtml(refreshedLabel())}).</p>
+      <p class="count-meta">Copy the prompt into Cursor to see the live Query. Count only — no PII is returned.</p>
     </div>
-    <div class="count-block snow">
-      <p class="count-label">Snowflake source count</p>
-      ${snowValue}
-      <p class="count-meta">${snowMeta}</p>
-    </div>
-    <p class="delta">${escapeHtml(delta)}</p>
-    <p class="count-meta">Count only — no PII is returned.</p>
-    ${
-      hasStream
-        ? '<p class="count-meta"><strong>Note:</strong> Authenticate the Snowflake MCP once so the agent can fill the Snowflake count instead of PENDING.</p>'
-        : ""
-    }
   `;
 }
 
@@ -833,7 +806,7 @@ function renderFaqs() {
           <p class="faq-answer"><strong>Filters:</strong> ${escapeHtml(entry.filters)}</p>
           ${
             entry.createFlow
-              ? '<p class="faq-answer"><strong>Agent flow:</strong> count → ask CIA → confirm → create D2C segment (lookback P2Y) → dual-report Data 360 vs Snowflake.</p>'
+              ? '<p class="faq-answer"><strong>Agent flow:</strong> count → ask CIA → confirm → create D2C segment (lookback P2Y) → everyday English + Query.</p>'
               : ""
           }
           <div class="faq-actions">

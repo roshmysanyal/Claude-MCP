@@ -1,13 +1,13 @@
-# Demo run sheet — Data 360 + Snowflake dual counts (Cursor)
+# Demo run sheet — Data 360 counts (Cursor)
 
 **Audience:** live room / leadership walkthrough  
-**Goal:** NL prompt in Cursor → **Data 360 count + Snowflake source count** (counts only, no PII)  
-**Dataspace for dual tally:** `STG_US` (Stage) only  
-**Skill:** `d360-segments-activations` · **MCPs:** `data360` + Snowflake  
+**Goal:** NL prompt in Cursor → **everyday English count + the Query** (counts only, no PII)  
+**Dataspace:** `STG_US` (Stage) for HQ / IQVIA demos  
+**Skill:** `d360-segments-activations` · **MCP:** `data360`
 
 Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake.md) · Prompt bank: [../prompts/example-prompts.md](../prompts/example-prompts.md) · Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md)
 
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360. Use copy-paste prompts that name **dataspace + populated DMO** so the agent does not re-ask routing questions.
+> Query Data 360 only. Answer in everyday English, then put the Query. Do not include a Snowflake count, matching table, PENDING, or Delta.
 
 ---
 
@@ -16,11 +16,9 @@ Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake
 | Say | Don’t say |
 | --- | --- |
 | “Ask in Cursor — no Salesforce **UI** required.” | “No Salesforce access / no Salesforce identity.” |
-| “Every count is validated against the Snowflake stream source.” | “Einstein segment count.” |
+| “We answer in everyday English, then show the Query.” | “Einstein segment count.” |
 | “We return **counts only** — never HCP/patient rows or PII.” | “I’ll show a few sample doctors/patients.” |
-| “Today’s dual-tally path is **Stage HQ email / IQVIA** (ACTIVE streams).” | “Any dataspace, any prompt works the same.” |
-| “Dev/Prod HCP streams are mostly not activated yet — we won’t demo those for Snowflake parity.” | “Prod is empty so Data Cloud is wrong.” |
-| “Delta within 2–5% with matched refresh windows = pass.” | “The numbers must be identical every time.” |
+| “Today’s live path is **Stage HQ email / IQVIA**.” | “Any dataspace, any prompt works the same.” |
 
 ---
 
@@ -45,9 +43,7 @@ Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake
 | 2 | Skill `d360-segments-activations` enabled | Presenter | ☐ |
 | 3 | Stream `STG_HCP_OCL_HEADQUARTER_EMAIL` = **ACTIVE** + refreshed | Data Cloud | ☐ |
 | 4 | Stream `STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING` = **ACTIVE** (backup) | Data Cloud | ☐ |
-| 5 | Snowflake MCP connected (tools discover; not error) | Snowflake | ☐ |
-| 6 | Dry-run Prompt 1 → both integers (not PENDING) | Presenter | ☐ |
-| 7 | Capture D360 last-refresh + Snowflake query time | Presenter | ☐ |
+| 5 | Dry-run Prompt 1 → everyday English + Query | Presenter | ☐ |
 
 **If #5/#6 fail:** still demo D360 live; run Snowflake SQL in Snowsight; say “Snowflake MCP wiring is next — source SQL is already governed in the skill.”
 
@@ -57,7 +53,7 @@ Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake
 
 ### 0. Frame (30 sec)
 
-> “Marketer asks in plain English. Cursor uses Data 360 MCP for the cloud count and Snowflake MCP for the source tally. Output is a count table — no PII, no Salesforce UI.”
+> “Marketer asks in plain English. Cursor uses Data 360 MCP. The answer is a sentence they can understand, then the Query — no PII, no Salesforce UI, no Snowflake matching table.”
 
 ### 1. Primary prompt (locked) — ~3 min
 
@@ -67,32 +63,20 @@ Full SQL library: [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake
 
 **Expected shape:**
 
-| Source | Count | Reference |
-| --- | --- | --- |
-| Data 360 | ~376,660 | Dataspace `STG_US` · DMO `stg_Headquarter_Email_Engagement__dlm` |
-| Snowflake source | *M* | `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL` · stream `STG_HCP_OCL_HEADQUARTER_EMAIL` |
+```text
+There are about 376,660 doctors in Stage who opened a headquarter email in the last 90 days.
 
-Delta: |N−M| (≤ threshold) — VALIDATED
-
-**D360 SQL (agent should use):**
-
-```sql
+**Query**
 SELECT COUNT(DISTINCT "IndividualId__c") AS hcp_count
 FROM "stg_Headquarter_Email_Engagement__dlm"
 WHERE "EngagementChannelAction__c" = 'OPENED'
   AND "EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90' DAY;
 ```
 
-**Snowflake SQL (agent or Snowsight fallback):**
+**Architects only (do not show in the room):** warehouse SQL for this DMO is in
+[d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md).
 
-```sql
-SELECT COUNT(DISTINCT INDIVIDUAL_ID) AS hcp_count
-FROM CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL
-WHERE ENGAGEMENT_CHANNEL_ACTION = 'OPENED'
-  AND ENGAGEMENT_DATE_TIME >= DATEADD(day, -90, CURRENT_DATE());
-```
-
-**Narrate:** grain = distinct HCP · Stage only · stream ACTIVE · both sides same business filter.
+**Narrate:** grain = distinct doctors · Stage only · everyday English then the Query.
 
 ### 2. Brand follow-up (optional) — ~2 min
 

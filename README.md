@@ -54,10 +54,11 @@ Pre-development checklist. Fill in owners/values before kickoff.
 2. **Activate the hosted Data 360 MCP server** → [setup/01-activate-mcp-server.md](setup/01-activate-mcp-server.md)
 3. **Set up authentication (External Client App + per-user OAuth)** → [setup/02-auth-setup.md](setup/02-auth-setup.md)
 4. **Connect your client (Cursor / Claude on Bedrock)** → [setup/03-connect-claude.md](setup/03-connect-claude.md)
-5. **Install the governed Skill** → copy [skill/d360-segments-activations/](skill/d360-segments-activations/) into your Claude skills directory; have the governance owner review it.
-6. **Confirm connectivity:** in Claude, ask it to run the MCP `search` tool for `"segment"` and `"query"` — you should get back Data 360 operation names. This proves the server is wired up.
-7. **Verify the semantic layer** → confirm the DMO/field/join model [reference/dataModel-dev.yaml](reference/dataModel-dev.yaml) against the live org and flip every `VERIFY` to `verified`, per [reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
-8. **Lock the reference segment, the OCL/Snowflake query, the success threshold, and the governance owner** (checklist above).
+5. **Share with other users (Cursor vs Claude checklist)** → [setup/05-share-with-users-cursor-claude.md](setup/05-share-with-users-cursor-claude.md)
+6. **Install the governed Skill** → copy [skill/d360-segments-activations/](skill/d360-segments-activations/) into your Claude skills directory; have the governance owner review it.
+7. **Confirm connectivity:** in Claude, ask it to run the MCP `search` tool for `"segment"` and `"query"` — you should get back Data 360 operation names. This proves the server is wired up.
+8. **Verify the semantic layer** → confirm the DMO/field/join model [reference/dataModel-dev.yaml](reference/dataModel-dev.yaml) against the live org and flip every `VERIFY` to `verified`, per [reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
+9. **Lock the reference segment, the OCL/Snowflake query, the success threshold, and the governance owner** (checklist above).
 
 > **Track progress** against these phases in [milestones.md](milestones.md).
 
@@ -71,7 +72,7 @@ Goal: prove Claude can return a Data 360 count from plain English, and that it m
 
 1. Open Claude / Cursor with the Skill enabled and the `data360` MCP server connected.
 2. Start from a **suggestion prompt** in [prompts/chat-starters.md](prompts/chat-starters.md) (or the copy-paste block in [prompts/example-prompts.md](prompts/example-prompts.md)) — each names **dataspace + populated DMO** so the agent does not re-ask routing.
-3. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns the **dual-report table** (live Data 360 count + Snowflake validation SQL marked PENDING — do **not** probe Snowflake MCP) plus Data 360 DMO and segment links.
+3. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns **everyday English** plus the **Query** (the Data 360 SQL). Do **not** include a Snowflake count, matching table, PENDING, or Delta.
 4. **Capture the D360 data-stream last-refresh timestamp** (the Skill will report it; if not, pull from the org).
 5. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](validation/run-benchmark.md) using [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
 6. **Compare** → [validation/compare-counts.md](validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
@@ -129,7 +130,7 @@ customer-d360-poc/
 ├── README.md                    ← you are here
 ├── milestones.md                ← progress tracker (phases, status, blockers, decisions)
 ├── scaling-via-repo.md          ← PROPOSED: how one skill/semantic-layer update reaches every user (tool-agnostic)
-├── setup/                       ← 00 provision Salesforce · 01 install · 02 auth · 03 connect Claude
+├── setup/                       ← 00 provision · 01 MCP · 02 auth · 03 connect · 05 share Cursor/Claude
 ├── skill/d360-segments-activations/  ← the governed Claude Skill (SKILL.md)
 ├── reference/                   ← semantic layer: DMO/field/join model (dataModel-dev.yaml) + how-to-use / verify docs
 ├── prompts/                     ← example marketer prompts + chat-starters.md (POC Phase 1/2)

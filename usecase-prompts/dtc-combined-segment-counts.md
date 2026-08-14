@@ -31,41 +31,24 @@ Do **not** include DTC email engagement in these demos — person linkage is tes
 | **Data 360 segment member count** | **26,531** |
 | Recipe A count (same filters) | 26,531 (match) |
 
-**Snowflake validation SQL** (stream ACTIVE — run in Snowflake to dual-report):
+There are **26,531** patients in this Premarin opted-in audience.
 
-```sql
--- Brand side
-SELECT COUNT(DISTINCT INDIVIDUAL_ID) -- confirm column name in source
-FROM CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES
-WHERE UPPER(BRAND) = 'PREMARIN';
-
--- Consent side (opt-in) — join path depends on source keys; agent should align filters
--- Source stream: DTC_OT_EMAIL_CONSENT / DTC_OT_CONSENT_PREFERENCE
-```
-
-If Snowflake is not reachable from the agent session:
-
-```text
-**Data 360 count:** 26,531
-**Snowflake source count:** PENDING (provide validation SQL above)
-  Source: CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES
-```
+**Query** — see Recipe A SQL in Use case A below.
 
 ---
 
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.  
 > Chat starters: [../prompts/chat-starters.md](../prompts/chat-starters.md) · Full bank: [../prompts/example-prompts.md](../prompts/example-prompts.md).
+> Answers: everyday English + the Query. No Snowflake count or matching table.
 
 ## Use case A — Brand profile + opted in
 
 **Dataspace:** `DTC` (patient / D2C)  
-**Populated DMOs:** `DTC_BrandProfile__dlm` + `DTC_ContactPointConsent__dlm`  
-**Snowflake:** `CDP_US_DTC_STG_DB.DTC_DC_IN.DTC_BRAND_PROFILES` ⨝ `DTC_OT_EMAIL_CONSENTS`
+**Populated DMOs:** `DTC_BrandProfile__dlm` + `DTC_ContactPointConsent__dlm`
 
 **Copy-paste (low clarifying steps):**
 
 ```text
-In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Dual-report Data 360 + Snowflake validation against DTC_BRAND_PROFILES joined to DTC_OT_EMAIL_CONSENTS in CDP_US_DTC_STG_DB.DTC_DC_IN. If Snowflake is unreachable, return the exact validation SQL and mark PENDING. Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
+In dataspace DTC (patient/D2C), count distinct consumers who have PREMARIN on populated DMO DTC_BrandProfile__dlm AND ConsentStatusId__c = 'IN' on populated DMO DTC_ContactPointConsent__dlm (join on IndividualId / PartyId). Do not ask clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.
 ```
 
 **Short FAQ prompt:** For patients, how many Premarin brand-profile consumers are opted in?
@@ -207,15 +190,6 @@ qualifier if required). See [create-segment-from-count.md](create-segment-from-c
 
 ---
 
-## Snowflake dual-report
-
-Brand, consent, and preference DMOs are on **ACTIVE** Snowflake streams under connection
-`DTC_CDP_US`. Report:
-
-```text
-**Data 360 count:** <N>
-**Snowflake source count:** <M or PENDING> (Source: CDP_US_DTC_STG_DB.DTC_DC_IN.<TABLE>)
-```
-
-If Snowflake is not connected from the agent session, still return the validation SQL and mark
-Snowflake **PENDING**.
+Warehouse mappings for architects (not chat output) live in
+[../validation/d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md).
+Chat answers stay everyday English + the Query.

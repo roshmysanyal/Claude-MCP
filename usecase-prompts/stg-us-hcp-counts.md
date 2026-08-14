@@ -8,14 +8,11 @@ Add more dataspace-specific use-case prompt files here as they are validated.
 
 Semantic layer: [../reference/dataModel-stg-us.yaml](../reference/dataModel-stg-us.yaml).  
 Always say **Stage** (or `STG_US`) when the Skill asks Dev / Stage / Prod.  
-Counts return **numbers only** — no PII (see Skill *PII-safe counts*) — and must
-**dual-report** Data 360 vs the Snowflake stream source table
-([d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md)).
+Counts return **numbers only** — no PII (see Skill *PII-safe counts*) — in **everyday English**,
+then the **Query**. Do **not** include a Snowflake count or matching table.
 
 **Tag in demo UI / example prompts:** these Stage HQ + IQVIA prompts are labeled
-**D360 and Snowflake count** (DMOs with both Data 360 and Snowflake stream sources).
-See [demo-segments-d360-snowflake.md](demo-segments-d360-snowflake.md) and
-[../prompts/example-prompts.md](../prompts/example-prompts.md).
+**Stage count**.
 
 ---
 
@@ -40,16 +37,16 @@ profile data loads — that path yields 0.
 
 ## Demo-ready prompts (copy/paste)
 
-> **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.  
 > Prefer prompts that name **STG-US + populated DMO** so the agent skips clarifying steps.  
 > Full bank: [../prompts/example-prompts.md](../prompts/example-prompts.md) · starters: [../prompts/chat-starters.md](../prompts/chat-starters.md).
+> Answers: everyday English + the Query. No Snowflake count or matching table.
 
 ### Headquarter email engagement (populated DMO: `stg_Headquarter_Email_Engagement__dlm`)
 
-**Low-friction dual-report (recommended):**
+**Low-friction count (recommended):**
 
 ```text
-In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Return the dual-report table: Data 360 count + Snowflake source count for stream STG_HCP_OCL_HEADQUARTER_EMAIL → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL. If Snowflake cannot be tallied, still show the Snowflake validation SQL and mark PENDING. Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
+In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened a headquarter email in the last 90 days using populated DMO stg_Headquarter_Email_Engagement__dlm (EngagementChannelAction__c = 'OPENED'). Do not ask clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.
 ```
 
 | # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |
@@ -70,7 +67,7 @@ In dataspace STG-US (MCP: STG_US), HCP audience: count distinct HCPs who opened 
 ### IQVIA competitive prescribing (populated DMO: `stg_IQVIACompetitorSalesFact__dlm`)
 
 ```text
-In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Dual-report Data 360 vs Snowflake stream STG_HCP_IQVIA_COMPETITIVE_PRESCRIBING → CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_IQVIA_COMPETITIVE_PRESCRIBING (include SQL if PENDING). Do not check Snowflake MCP. Return live Data 360 count + Snowflake validation SQL (PENDING) + note + Data 360 DMO link and segment link (or N/A).
+In dataspace STG-US (MCP: STG_US), HCP: count distinct HCPs with Eliquis NRx > 0 using populated DMO stg_IQVIACompetitorSalesFact__dlm. No clarifying questions. Answer in everyday English for a non-technical reader. Then put the Query (the Data 360 SQL you ran). Do not include a Snowflake count, matching table, PENDING, Delta, or dual-report.
 ```
 
 | # | Short FAQ / prompt | Maps to | Ballpark (2026-08-07) |
@@ -109,14 +106,8 @@ profile + address streams are activated.
 2. Map HQ email asks to `HeadquarterEmailEngagement` (not `EmailEngagement` — that DMO is absent
    in STG).
 3. Return **COUNT(DISTINCT …) only** — never PII (no emails, names, or sample people).
-4. **Dual-report with Snowflake source table** (required). Look up the stream in
-   [snowflake-stream-sources.md](../reference/snowflake-stream-sources.md) and report both counts
-   per [d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md):
-
-   > **Data 360 count:** …  
-   > **Snowflake source count:** … (Source: `CDP_US_HCP_STG_DB.HCP_DC_IN.HCP_OCL_HEADQUARTER_EMAIL`
-   > or `…HCP_IQVIA_COMPETITIVE_PRESCRIBING`)
-
+4. **Answer in everyday English, then put the Query.** Do **not** show a Snowflake count or
+   matching table.
 5. If the path incorrectly goes through empty UnifiedIndividual and returns 0, fall back to
    counting distinct `IndividualId__c` on the HQ / IQVIA DMO and note the profile gap.
-6. Empty Staging results: still return literal SQL under **SQL (for validation)** when applicable.
+6. Empty Staging results: still return literal SQL under **Query** when applicable.

@@ -11,8 +11,8 @@
 | Dataspace | Count works? | Segment create works? | Why |
 | --- | --- | --- | --- |
 | **Development** — CRM email Open/Click/Send | Yes | **Yes** | UnifiedIndividual + IdentityLink + EmailEngagement populated |
-| **DTC** — brand + consent (+ email) | Yes | **Yes** | Individual / UnifiedIndividual / BrandProfile / Consent populated; streams ACTIVE for dual-report |
-| **Stage** — HQ email / IQVIA (**D360 and Snowflake count**) | Yes | **Draft only** | Counts use engagement/IQVIA DMOs; SegmentOn `stg_UnifiedIndividual__dlm` / Individual is **empty (0)** — published segment has **0 members** until profile streams load |
+| **DTC** — brand + consent (+ email) | Yes | **Yes** | Individual / UnifiedIndividual / BrandProfile / Consent populated |
+| **Stage** — HQ email / IQVIA | Yes | **Draft only** | Counts use engagement/IQVIA DMOs; SegmentOn `stg_UnifiedIndividual__dlm` / Individual is **empty (0)** — published segment has **0 members** until profile streams load |
 | **Prod** — CRM email | Yes | Likely yes (same pattern as Dev) | Confirm UnifiedIndividual + EmailEngagement join before publish |
 
 ---
@@ -45,7 +45,7 @@ Name ends with test (`displayName` … test, API …_test). lookbackPeriod: P2Y.
 If this is DTC/patient: ask first whether to include CIA Consumer Marketable Email; nest it only if yes.
 Show the SQL before create. Then create with publishSchedule NoRefresh and confirm.
 Publish only after confirmation, still with lookback P2Y.
-After create, pull the segment count and compare to the Recipe A count for the same filters.
+After create, pull the segment count in everyday English and put the Query. Compare to the Recipe A count for the same filters. Do not include a Snowflake count or matching table.
 ```
 
 ---
@@ -96,4 +96,4 @@ WHERE i."Id__c" IN (
 - Confirm dataspace before create (never silent `default`).
 - DTC / patient: **ask** whether to nest CIA Consumer Marketable Email; nest only if yes.
 - Every create and publish uses `lookbackPeriod: P2Y` (never `P3Y` or `P90D`).
-- Stage **D360 and Snowflake count** demos: lead with count dual-report; treat create as “SQL ready / members pending profile.”
+- Stage **D360 count** demos: lead with everyday English + the Query; treat create as “SQL ready / members pending profile.”
