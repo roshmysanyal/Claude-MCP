@@ -30,7 +30,14 @@ PENDING, or Delta.
    Example: *There are 94,853 doctors in Stage who opened a Comirnaty headquarter email
    in the last 90 days.*
 3. Then put the **Query** — the Data 360 SQL that produced that number. Do not hide it.
-4. If this is a segment create/update/status and a MarketSegment exists, add a simple
-   **Open this audience** link. Skip N/A segment lines on a plain count.
+4. **Always** include a Salesforce **segment link** on every count — **pull** (Recipe A /
+   status) **and** **push** (create / update / status):
+   - Prefer a matching MarketSegment in the same dataspace
+     (`d360_segment_list` / `d360_segment_get`, or the segment you just created/updated):
+     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`
+   - If none matches yet: still emit
+     `Data 360 segment link: N/A — no MarketSegment for this count yet` **and** the org list
+     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list`
+   Never omit the segment-link line from a count answer.
 5. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email
    engagement audiences).

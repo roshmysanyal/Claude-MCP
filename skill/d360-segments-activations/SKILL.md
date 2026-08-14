@@ -16,8 +16,9 @@ description: >-
   consumers → auto-route to dataspace `DTC`** (do not ask which dataspace). **Doctors /
   HCPs** → ask Dev / Stage / Prod only when missing. Every count answer is for a
   **non-technical reader**: lead with **natural English** (doctors / patients and the
-  number), then put the **Query** (the Data 360 SQL that produced the number). Query
-  **Data 360 only** — do **not** check Snowflake MCP, run the Snowflake connector, or
+  number), then put the **Query** (the Data 360 SQL that produced the number), then the
+  Salesforce **segment link** (pull and push — matching MarketSegment URL, or N/A + list URL).
+  Query **Data 360 only** — do **not** check Snowflake MCP, run the Snowflake connector, or
   show a Snowflake count, matching table, PENDING, or Delta. Count responses never
   include PII. For patient/consumer/D2C/DTC segment creates and updates, **always ask**
   whether to include CIA Consumer Marketable Email before nesting it — do not nest or
@@ -101,11 +102,18 @@ entity model and operations below — no brand allowlist.
   - Lead with everyday language (*doctors* / *patients*) and the number.
   - Then put the **Query** — the Data 360 SQL that produced that number.
   - Do **not** show a Snowflake count, matching table, PENDING, Delta, or dual-report.
-- **Audience link on create / update / status:** After a Recipe B / U / S write or read, add
-  a simple **Open this audience** URL:
+- **Salesforce segment link on every count (pull and push):** After every Recipe A count, and
+  after every Recipe B / U / S create / update / status that yields a member count, always include
+  a Salesforce **segment link**:
   `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`
-  (use the live org host when context differs). On a plain Recipe A count with no MarketSegment,
-  skip N/A segment lines.
+  (use the live org host when context differs).
+  - **Push / status:** the segment you just created, updated, or read — never finish without its URL.
+  - **Pull (Recipe A):** look up a matching MarketSegment in the same dataspace
+    (`d360_segment_list` / `d360_segment_get`, plus known catalog). If one matches, use its URL.
+    If none matches, still emit
+    `Data 360 segment link: N/A — no MarketSegment for this count yet` **and**
+    `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list`.
+  Never omit the segment-link line from a count answer.
 - **Segment create naming + lookback (required):** On every **new** segment create (Recipe B):
   - **Name must end with `test`:** `displayName` ends with ` test` (space + test); `developerName`
     / API name ends with `_test`. If the proposed name already ends with `test` / `_test`, do not
@@ -157,7 +165,8 @@ must remain `COUNT(DISTINCT …)` only — never add PII columns.
 
 - A **natural-English sentence** with the integer (doctors or patients, what was asked, the number).
 - The **Query** — the Data 360 SQL that produced that number. Always include it after the sentence.
-- On create / update / status, a simple **Open this audience** link when a MarketSegment exists.
+- A Salesforce **segment link** on **every** count — pull and push (matching MarketSegment URL, or
+  N/A + MarketSegment list URL when none matches yet).
 - Non-PII **aggregate** diagnostics only when needed (fill-rates; `GROUP BY` on `pii:false`
   categorical fields). Empty POC Staging/Development SQL must remain `COUNT(DISTINCT …)` only —
   never add PII columns.
@@ -175,6 +184,15 @@ There are <N> <doctors|patients> in <Dev|Stage|Prod|DTC> who <plain-English crit
 
 **Query**
 <the Data 360 SQL you ran>
+
+**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
+```
+
+When no MarketSegment matches a pull count yet:
+
+```text
+**Data 360 segment link:** N/A — no MarketSegment for this count yet
+https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list
 ```
 
 Example:
@@ -188,6 +206,8 @@ FROM "stg_Headquarter_Email_Engagement__dlm" e
 WHERE e."Brand__c" = 'COMIRNATY'
   AND e."EngagementChannelAction__c" = 'OPENED'
   AND e."EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90' DAY;
+
+**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
 ```
 
 Rules:
@@ -195,13 +215,14 @@ Rules:
 - **Lead with English.** Mirror *doctors* or *patients*. Do not lead with API names, dataspace
   codes, or a comparison table.
 - **Always put the Query** after the sentence — the Data 360 SQL that produced the number.
+- **Always put the Salesforce segment link** after the Query — pull and push. Resolve
+  `marketSegmentId` via `d360_segment_get` / `d360_segment_list` (or the segment you just wrote).
+  Never omit this line.
 - **Never** show a Snowflake count, matching table, PENDING, Delta, or dual-report.
 - Do **not** probe Snowflake MCP. Warehouse SQL is for a technical validation cookbook, not the
   default answer. Share it only if the user asks.
 - **Counts only — no PII.** The sentence and query carry an integer and filters, never person
   attributes.
-- After create / update / status, add **Open this audience:** plus the MarketSegment URL. On a
-  plain count with no segment, omit that line.
 
 ### What you must never return with a count
 
@@ -444,10 +465,13 @@ user if ambiguous.
 
    **Query**
    <the Data 360 SQL you ran>
+
+   **Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
    ```
 
-   After create / update / status, add **Open this audience:** plus the MarketSegment URL. On a
-   plain count with no MarketSegment, omit that line.
+   Always include the Salesforce **segment link** on every count (pull and push). Look up a
+   matching MarketSegment for Recipe A; use the segment you wrote for Recipe B / U / S. If none
+   matches yet, emit N/A plus the MarketSegment list URL — never omit the line.
 7. **Record what you observed** in [../../reference/observed-values.md](../../reference/observed-values.md), and **profile on empty / unknown values**:
    - **If the count comes back 0 / empty**, don't stop at "0". **Profile the DMO** that filtered it out. The GA facade has **no dedicated data-profiler** — `d360_profile_query`/`d360_profile_metadata` are the *Profile query API* (they query/describe the unified profile DMOs), not a column-statistics tool. So profiling means **writing aggregation SQL through the Query SQL op** (`d360_query_sql`): per-column populated count + percent (the fill-rate expression below), cardinality (`COUNT(DISTINCT …)`), and — for non-PII, low-cardinality categorical fields — the value breakdown (`GROUP BY`). **You enforce PII-safety** — for `pii:true` fields query **fill-rate only, never the literals**. Use the result to tell the user *what values ARE present* and to distinguish "zero matches" from "the field isn't populated at all."
    - **When the user asks about a specific value, or you are unsure what values a field holds**, run a value-distribution query **before** (or instead of) guessing literals. Canonical shape (non-PII fields only):
@@ -555,13 +579,13 @@ This audience currently has <N> <doctors|patients>.
 **Query**
 <the Data 360 SQL or the membership SQL for this segment>
 
-Open this audience: https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
+**Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
 
 Publication: <DRAFT|PUBLISHED|ACTIVE|…> (last published <timestamp>)
 Activation: <ACTIVATED|CONFIGURED, NOT ACTIVE|NOT ACTIVATED|UNKNOWN>
 ```
 
-Always include **Open this audience** on a segment count/status read.
+Always include the Salesforce **Data 360 segment link** on every count and status read (pull and push).
 ## Recipe B — Push (build a segment → activate)
 
 **Trigger:** the user wants to turn a population into a segment — a **plain-English use case**
@@ -838,7 +862,8 @@ WHERE DTC_UnifiedIndividualDtc__dlm.Id__c IN (
     **Open this audience**.
 13. **Report the success criteria:** for a rebuild — (1) count match, (2) segment equivalence, (3)
    SFMC receipt; for build-from-count — (1) segment membership matches the count, (2) SFMC receipt.
-   Always close with natural English + Query (+ **Open this audience** after create).
+   Always close with natural English + Query + **Data 360 segment link** (required on every
+   count — pull and push).
 
 ## Recipe P — Publish a segment (on-demand evaluation)
 
@@ -991,11 +1016,12 @@ and for anyone who asks.
   WHERE e."Brand__c" = 'COMIRNATY'
     AND e."EngagementChannelAction__c" = 'OPENED'
     AND e."EngagementDateTime__c" >= CURRENT_DATE - INTERVAL '90' DAY;
+
+  **Data 360 segment link:** https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view
   ```
 
-  After create / update / status, add **Open this audience** plus the MarketSegment URL. On a
-  plain count with no segment, omit that line. Never probe Snowflake MCP. Never accompany counts
-  with PII samples.
+  Always include the Salesforce **segment link** on every count — pull and push. Never probe
+  Snowflake MCP. Never accompany counts with PII samples.
 
   When the user **starts a chat** or asks what to run, offer suggestion prompts from
   [../../prompts/chat-starters.md](../../prompts/chat-starters.md) (dataspace + populated DMO named).
@@ -1033,9 +1059,11 @@ and for anyone who asks.
   Snowflake count, matching table, PENDING, or Delta. Warehouse SQL lives in
   [../../validation/d360-vs-snowflake-stream.md](../../validation/d360-vs-snowflake-stream.md)
   for technical validation only — share it if the user asks.
-- **Open this audience after create / update / status.** Use
-  `/lightning/r/MarketSegment/<marketSegmentId>/view` (org host). On a plain Recipe A count with
-  no MarketSegment, skip N/A segment lines.
+- **Salesforce segment link on every count (pull and push).** Always emit
+  `/lightning/r/MarketSegment/<marketSegmentId>/view` (org host) after the Query — for Recipe A
+  counts and for create / update / status. Look up a matching MarketSegment on pull; use the
+  segment you wrote on push. If none matches yet, emit N/A plus
+  `/lightning/o/MarketSegment/list`. Never omit the segment-link line.
 - **Create, publish, and activate are separate writes.** A request to create authorizes create only,
   not publish or activation. Show the definition and dataspace before create; read it back after
   create; obtain separate confirmation before publish (**Recipe P** — `d360_segment_publish` with
