@@ -2,12 +2,12 @@
 
 Where the **skill owner** turns noisy [session-log.md](session-log.md) entries into concrete,
 *decided* changes to the one canonical skill. The log is the notebook; this is the triage surface;
-`SKILL.md` / `dataModel.yaml` are the governed artifacts that actually change agent behavior.
+`SKILL.md` / `dataModel-dev.yaml` are the governed artifacts that actually change agent behavior.
 
 > **Owner:** the named skill/governance owner. Only the owner promotes items here into a merged edit
 > of the governed skill — the same review bar as every other governance artifact in this repo
 > ([before-using-and-on-data-model-changes.md](../reference/before-using-and-on-data-model-changes.md),
-> [scaling-via-repo.md](../scaling-via-repo.md)). Users log; the owner decides and ships.
+> [scaling-via-repo.md](../../scaling-via-repo.md)). Users log; the owner decides and ships.
 
 ---
 
@@ -20,7 +20,7 @@ Run on a cadence (weekly during the POC; adjust for production volume):
 2. **Cluster.** Group by category + topic. One-off ≠ signal; a repeat across sessions/users is.
 3. **Decide.** For each cluster, choose: **ship a skill change**, **wontfix** (with a reason), or
    **needs-info** (watch for more signal). Record it in the backlog table below.
-4. **Ship one canonical edit.** Make the change in `SKILL.md` / `dataModel.yaml` via a PR (audit
+4. **Ship one canonical edit.** Make the change in `SKILL.md` / `dataModel-dev.yaml` via a PR (audit
    trail). Merge → everyone pulls it next session. No per-machine edits, ever.
 5. **Close the loop.** Set the source log entry's **Status** to `fixed in <PR>`, and add a row to
    **Shipped changes** below so the skill's evolution stays auditable.

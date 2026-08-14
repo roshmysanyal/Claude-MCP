@@ -6,7 +6,7 @@ Natural-language prompts that return **real HCP counts** in dataspace **`STG_US`
 This folder is a **separate node** from [../prompts/](../prompts/) (POC example prompts).
 Add more dataspace-specific use-case prompt files here as they are validated.
 
-Semantic layer: [../reference/dataModel-stg-us.yaml](../reference/dataModel-stg-us.yaml).  
+Semantic layer: [dataModel-stg-us.yaml](../skill/d360-segments-activations/reference/dataModel-stg-us.yaml).  
 Always say **Stage** (or `STG_US`) when the Skill asks Dev / Stage / Prod.  
 Counts return **numbers only** — no PII (see Skill *PII-safe counts*) — in **everyday English**,
 then the **Query**. Do **not** include a Snowflake count or matching table.
@@ -102,7 +102,7 @@ profile + address streams are activated.
 ## Expected Skill behavior
 
 1. Ask **Dev / Stage / Prod** if not named → user chooses **Stage** → load
-   [dataModel-stg-us.yaml](../reference/dataModel-stg-us.yaml), dataspace `STG_US`.
+   [dataModel-stg-us.yaml](../skill/d360-segments-activations/reference/dataModel-stg-us.yaml), dataspace `STG_US`.
 2. Map HQ email asks to `HeadquarterEmailEngagement` (not `EmailEngagement` — that DMO is absent
    in STG).
 3. Return **COUNT(DISTINCT …) only** — never PII (no emails, names, or sample people).

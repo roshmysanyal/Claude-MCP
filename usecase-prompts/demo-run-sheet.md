@@ -74,7 +74,7 @@ WHERE "EngagementChannelAction__c" = 'OPENED'
 ```
 
 **Architects only (do not show in the room):** warehouse SQL for this DMO is in
-[d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md).
+[d360-vs-snowflake-stream.md](../skill/d360-segments-activations/validation/d360-vs-snowflake-stream.md).
 
 **Narrate:** grain = distinct doctors · Stage only · everyday English then the Query.
 

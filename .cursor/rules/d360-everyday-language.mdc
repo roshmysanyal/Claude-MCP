@@ -17,8 +17,20 @@ Saying **patients** is enough — route and query without asking them to name DT
 | people / customers / audience (no noun) | Ask **“Doctors or patients?”** only |
 
 Restate the ask in their words before querying. Lead answers with *doctors* or *patients*,
-not API names. After the English sentence, put the **Query** (Data 360 SQL). Never show a
-Snowflake count, matching table, PENDING, or Delta.
+not API names. **Stage:** after the English sentence, put the **Query** (Data 360 SQL).
+**Prod:** count only — no Query. **Do not** include a Salesforce segment link on a count.
+After a count, ask whether to **build a segment** and whether it is for **Email or SMS**.
+Never show a Snowflake count, matching table, PENDING, or Delta.
+
+**Progress / status lines (while working):** same everyday voice. Restate the ask, then say you
+are getting the count or building the audience. Do **not** narrate skill files, schemas, join
+paths, DMOs, dataspace codes, IdentityLink, Unified Individual, or SQL in progress text.
+Prefer: *Looking up patients with a NURTEC copay card on file.* Avoid: *Checking the data model
+join path… via Unified Individual.*
+
+This holds for **every** progress line, including mid-task ones. A retry or a query fix is
+*Still working on that count.* — never *retrying with a corrected payload* or *checking the
+count SQL*.
 
 Patient **segment create/update:** still ask CIA (see `d360-dtc-cia-lookback.mdc`).
 Every publish uses lookback **P2Y**.

@@ -19,7 +19,7 @@ Related:
 
 | Shared (repo / admin) | Local / per-user (never commit) |
 | --- | --- |
-| This git repo (`skill/`, `reference/`, `.cursor/rules/`, prompts) | OAuth tokens / refresh tokens |
+| This git repo (`skill/`, `.cursor/rules/`, prompts) | OAuth tokens / refresh tokens |
 | Hosted MCP **Server URL** | Real ECA Consumer Key preferably in **user** MCP config |
 | Example MCP JSON (`mcp-config.example.json`) | Consumer Secret (only if ECA requires it) |
 | Setup docs under `setup/` | Salesforce password |
@@ -195,8 +195,8 @@ Use `--client-secret` only if your ECA requires a secret (paste when prompted).
 2. Callback on the ECA must be `https://claude.ai/api/mcp/auth_callback`.
 3. Restart Claude Desktop after adding.
 4. Copy `skill/d360-segments-activations/` into Desktop’s skills location for your install.
-5. Keep a current checkout of this repo (or an updated skill folder) so `reference/` and
-   recipes stay aligned.
+5. Keep a current checkout of this repo (or an updated skill folder) so the nested
+   `reference/` models and recipes stay aligned.
 
 ### Claude settings checklist
 

@@ -208,6 +208,114 @@ contained). Build each to its own rules; don't reuse one for the other.
 
 ---
 
+## Consent-aware example — same segment, but built for an EMAIL activation
+
+When the audience is meant for an **email** (or SMS) activation, keep the usual consent /
+preference filters **and** confirm **audience type (HCP vs DTC)**. Consent/preference alone is not
+enough for channel contactability — see the next section for the governed marketable base-segment
+layer.
+
+Illustrative membership shape (consent status on the declared path; placeholders are not live
+literals until confirmed in the routed model):
+
+```sql
+SELECT <SegmentOnDmo>.Id__c
+FROM <SegmentOnDmo>
+WHERE <SegmentOnDmo>.Id__c IN (
+    /* identity-link → Individual → ContactPointConsent (declared keys only) */
+    SELECT <IdentityLinkDmo>.UnifiedRecordId__c
+    FROM <IdentityLinkDmo>
+    WHERE <IdentityLinkDmo>.SourceRecordId__c IN (
+      SELECT <ContactPointConsentDmo>.PartyId__c
+      FROM <ContactPointConsentDmo>
+      WHERE <ContactPointConsentDmo>.ConsentStatusId__c IN ('IN', 'UNKNOWN')
+    )
+)
+  AND <SegmentOnDmo>.Id__c IN (
+    /* additional use-case filters — brand, geo, engagement, … */
+  );
+```
+
+Still obey segment SQL validation: project **only** the SegmentOn PK; no aggregation / `DISTINCT` /
+`CASE` / aliases; fully-qualified columns; subqueries only in `WHERE`; joins only on declared keys.
+
+---
+
+## Marketable base segment — same EMAIL segment contained in the latest-audience DMO
+
+For **email** or **SMS**, intersect the matching pre-built marketable base segment’s **current
+members** (contactability layer). This sits **on top of** consent/preference — it does **not**
+replace them. Registry, publish/activate prerequisites, and grain rules:
+[consent-segments.md](consent-segments.md). **Do not copy `marketSegmentId` / audience DMO names
+into this file** — resolve them from that registry (`VERIFY` until the architect confirms).
+
+### Variant A — same grain (member key = SegmentOn PK)
+
+```sql
+SELECT <SegmentOnDmo>.Id__c
+FROM <SegmentOnDmo>
+WHERE <SegmentOnDmo>.Id__c IN (
+    SELECT <LatestAudienceDmo>.<MemberKeyColumn>
+    FROM <LatestAudienceDmo>
+)
+  AND <SegmentOnDmo>.Id__c IN (
+    SELECT <IdentityLinkDmo>.UnifiedRecordId__c
+    FROM <IdentityLinkDmo>
+    WHERE <IdentityLinkDmo>.SourceRecordId__c IN (
+      SELECT <ContactPointConsentDmo>.PartyId__c
+      FROM <ContactPointConsentDmo>
+      WHERE <ContactPointConsentDmo>.ConsentStatusId__c IN ('IN', 'UNKNOWN')
+    )
+  )
+  AND <SegmentOnDmo>.Id__c IN (
+    /* additional use-case filters — brand, geo, engagement, … */
+  );
+```
+
+`<LatestAudienceDmo>` and `<MemberKeyColumn>` come from the **audience × channel** row in
+[consent-segments.md](consent-segments.md) (from `d360_activation_get` →
+`latestAudienceDmoApiName`). If that DMO does not exist yet, **stop and flag** — the base segment
+must be published and activated to a Data Cloud target.
+
+Recipe A count for the same population uses the **same** `IN` nests with
+`SELECT COUNT(DISTINCT <SegmentOnDmo>.Id__c)`.
+
+### Variant B — different grain (IdentityLink routing)
+
+When the latest-audience DMO’s member key is **not** the same grain as your SegmentOn (e.g. source
+Individual vs Unified Individual), route through the IdentityLink DMO from the routed semantic
+layer — never join unified profile straight to a source record:
+
+```sql
+SELECT <UnifiedSegmentOnDmo>.Id__c
+FROM <UnifiedSegmentOnDmo>
+WHERE <UnifiedSegmentOnDmo>.Id__c IN (
+    SELECT <IdentityLinkDmo>.UnifiedRecordId__c
+    FROM <IdentityLinkDmo>
+    WHERE <IdentityLinkDmo>.SourceRecordId__c IN (
+        SELECT <LatestAudienceDmo>.<MemberKeyColumn>
+        FROM <LatestAudienceDmo>
+    )
+)
+  AND <UnifiedSegmentOnDmo>.Id__c IN (
+    SELECT <IdentityLinkDmo>.UnifiedRecordId__c
+    FROM <IdentityLinkDmo>
+    WHERE <IdentityLinkDmo>.SourceRecordId__c IN (
+      SELECT <ContactPointConsentDmo>.PartyId__c
+      FROM <ContactPointConsentDmo>
+      WHERE <ContactPointConsentDmo>.ConsentStatusId__c IN ('IN', 'UNKNOWN')
+    )
+  )
+  AND <UnifiedSegmentOnDmo>.Id__c IN (
+    /* additional use-case filters */
+  );
+```
+
+**Checklist:** email/SMS → matching base segment intersected on its latest-audience DMO (see
+[consent-segments.md](consent-segments.md)).
+
+---
+
 ## Worked example — DTC use case → multi-DMO containers
 
 **Reference segment (UI, learn from this):**
@@ -655,5 +763,6 @@ Publication: <returned status>
 Activation: <ACTIVATED | CONFIGURED, NOT ACTIVE | NOT ACTIVATED | UNKNOWN>
 ```
 
-Always include **Open this audience** after create and on every segment count/status read.
+Always include **Open this audience** after create / update / status of a named MarketSegment.
+Do **not** include a segment link when the user only asked for a count (Recipe A).
 Do **not** show a Snowflake count, PENDING match, Delta, or dual-report.

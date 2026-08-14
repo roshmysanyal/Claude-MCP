@@ -133,8 +133,8 @@ Only static currency-rate DMOs (e.g. `ppt_StaticCurrencyRates_*`). **No audience
 | HCP identity + CRM email | **DEV-US** or **PRD-US** Individuals + EmailEngagement |
 | Skip | Address/consent/brand seg (HCP), Stage profiles, DTC email engagement audiences, PRD-PAT, LAB |
 
-Sample prompts: [../prompts/example-prompts.md](../prompts/example-prompts.md).  
-Chat starters (dataspace + DMO named): [../../prompts/chat-starters.md](../../prompts/chat-starters.md).
+Sample prompts: [../prompts/example-prompts.md](../../prompts/example-prompts.md).  
+Chat starters (dataspace + DMO named): [../prompts/chat-starters.md](../../prompts/chat-starters.md).
 
 > **Note:** Snowflake is not queried via MCP. Run the validation SQL in Snowflake to complete the dual report; the Data 360 count above is live from Data 360.
 

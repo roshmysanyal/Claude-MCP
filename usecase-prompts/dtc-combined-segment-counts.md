@@ -4,7 +4,7 @@ Patient / D2C sample use cases that **join multiple populated DTC DMOs** to show
 segment-style counts. Dataspace: **`DTC`**. Audience tag: **D2C**.
 
 - **Seen:** `2026-08-11` via MCP `d360_query_sql` (count-only, no PII)
-- **Model:** [../reference/dataModel-dtc.yaml](../reference/dataModel-dtc.yaml)
+- **Model:** [dataModel-dtc.yaml](../skill/d360-segments-activations/reference/dataModel-dtc.yaml)
 - **Prompts:** [../prompts/example-prompts.md](../prompts/example-prompts.md) (*Sample use cases* → combined DMO)
 
 Do **not** include DTC email engagement in these demos — person linkage is test/partial.
@@ -186,10 +186,10 @@ This is the Skill-canonical anchor path (`unified_individual_to_brand_profile` +
 Count SQL uses `COUNT(DISTINCT …)`. Segment membership SQL must project **SegmentOn PK only**
 (no `COUNT`, no aggregation) — typically `DTC_UnifiedIndividualDtc__dlm."Id__c"` (plus key
 qualifier if required). See [create-segment-from-count.md](create-segment-from-count.md) and
-[../reference/creating-segments.md](../reference/creating-segments.md).
+[creating-segments.md](../skill/d360-segments-activations/reference/creating-segments.md).
 
 ---
 
 Warehouse mappings for architects (not chat output) live in
-[../validation/d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md).
+[d360-vs-snowflake-stream.md](../skill/d360-segments-activations/validation/d360-vs-snowflake-stream.md).
 Chat answers stay everyday English + the Query.

@@ -310,4 +310,4 @@ Use those only to show Skill mapping / empty-stream honesty — not stream-sourc
 **Delta:** <abs(N-M)> (<pct>%) — VALIDATED | NOT VALIDATED | PENDING
 ```
 
-See [../validation/d360-vs-snowflake-stream.md](../validation/d360-vs-snowflake-stream.md).
+See [d360-vs-snowflake-stream.md](../skill/d360-segments-activations/validation/d360-vs-snowflake-stream.md).

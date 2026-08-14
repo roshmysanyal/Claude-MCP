@@ -40,7 +40,7 @@ Pre-development checklist. Fill in owners/values before kickoff.
 - [ ] Hosted **Data 360 MCP server activated** in Setup + **External Client App** created (or interim `sf` CLI path chosen) — see [setup/](setup/)
 - [ ] Claude environment = **AWS Bedrock-hosted** confirmed (not claude.ai)
 - [ ] Reference segment identified — segment ID/name: `__________` (owner: Customer team)
-- [ ] OCL/Snowflake benchmark query locked — see [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql) (owner: Data Cloud Architect)
+- [ ] OCL/Snowflake benchmark query locked — see [ocl-benchmark.sql](skill/d360-segments-activations/validation/ocl-benchmark.sql) (owner: Data Cloud Architect)
 - [ ] Success-criteria threshold agreed — exact match or `__%` delta (target 2–5%)
 - [ ] Named **governance owner** confirmed: `__________` (owner: Customer IT)
 - [ ] HCP/PII compliance posture for MCP data transit confirmed (owner: Customer Compliance)
@@ -57,7 +57,7 @@ Pre-development checklist. Fill in owners/values before kickoff.
 5. **Share with other users (Cursor vs Claude checklist)** → [setup/05-share-with-users-cursor-claude.md](setup/05-share-with-users-cursor-claude.md)
 6. **Install the governed Skill** → copy [skill/d360-segments-activations/](skill/d360-segments-activations/) into your Claude skills directory; have the governance owner review it.
 7. **Confirm connectivity:** in Claude, ask it to run the MCP `search` tool for `"segment"` and `"query"` — you should get back Data 360 operation names. This proves the server is wired up.
-8. **Verify the semantic layer** → confirm the DMO/field/join model [reference/dataModel-dev.yaml](reference/dataModel-dev.yaml) against the live org and flip every `VERIFY` to `verified`, per [reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
+8. **Verify the semantic layer** → confirm the DMO/field/join model [dataModel-dev.yaml](skill/d360-segments-activations/reference/dataModel-dev.yaml) against the live org and flip every `VERIFY` to `verified`, per [before-using-and-on-data-model-changes.md](skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md) (owner: Data Cloud Architect). This is how Claude knows which objects/fields/joins to use.
 9. **Lock the reference segment, the OCL/Snowflake query, the success threshold, and the governance owner** (checklist above).
 
 > **Track progress** against these phases in [milestones.md](milestones.md).
@@ -74,8 +74,8 @@ Goal: prove Claude can return a Data 360 count from plain English, and that it m
 2. Start from a **suggestion prompt** in [prompts/chat-starters.md](prompts/chat-starters.md) (or the copy-paste block in [prompts/example-prompts.md](prompts/example-prompts.md)) — each names **dataspace + populated DMO** so the agent does not re-ask routing.
 3. The Skill drives the facade tools: `search` → `payload_examples` → `execute` (Query family, SQL/QueryV2) and returns **everyday English** plus the **Query** (the Data 360 SQL). Do **not** include a Snowflake count, matching table, PENDING, or Delta.
 4. **Capture the D360 data-stream last-refresh timestamp** (the Skill will report it; if not, pull from the org).
-5. Independently run the OCL/Snowflake benchmark → [validation/run-benchmark.md](validation/run-benchmark.md) using [validation/ocl-benchmark.sql](validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
-6. **Compare** → [validation/compare-counts.md](validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
+5. Independently run the OCL/Snowflake benchmark → [run-benchmark.md](skill/d360-segments-activations/validation/run-benchmark.md) using [ocl-benchmark.sql](skill/d360-segments-activations/validation/ocl-benchmark.sql). Capture the Snowflake snapshot timestamp.
+6. **Compare** → [compare-counts.md](skill/d360-segments-activations/validation/compare-counts.md). Both timestamps must be in the same refresh window. If the delta exceeds the agreed threshold, **do not present the number** — investigate or wait for the next refresh.
 7. Iterate the query logic until counts match (or document why they can't).
 
 **Exit gate:** Pull count within threshold of OCL/Snowflake, with matched refresh windows, documented.
@@ -131,21 +131,21 @@ customer-d360-poc/
 ├── milestones.md                ← progress tracker (phases, status, blockers, decisions)
 ├── scaling-via-repo.md          ← PROPOSED: how one skill/semantic-layer update reaches every user (tool-agnostic)
 ├── setup/                       ← 00 provision · 01 MCP · 02 auth · 03 connect · 05 share Cursor/Claude
-├── skill/d360-segments-activations/  ← the governed Claude Skill (SKILL.md)
-├── reference/                   ← semantic layer: DMO/field/join model (dataModel-dev.yaml) + how-to-use / verify docs
+├── skill/d360-segments-activations/
+│   ├── SKILL.md                 ← the governed Claude Skill
+│   ├── reference/               ← semantic layer: DMO/field/join models + how-to-use / verify docs
+│   ├── validation/              ← OCL/Snowflake benchmark + compare procedure (+ stream-source dual report)
+│   └── feedback/                ← session friction log → owner-reviewed skill changes (no per-machine forks)
 ├── prompts/                     ← example marketer prompts + chat-starters.md (POC Phase 1/2)
 ├── usecase-prompts/             ← dataspace-validated natural-language count use cases
 │                                  (+ demo-segments-d360-snowflake.md for dual-validation demos)
-├── demo-ui/                     ← CoCo: browser demo of pullable use cases by dataspace
-├── validation/                  ← OCL/Snowflake benchmark + compare procedure (+ stream-source dual report)
-├── feedback/                    ← self-improvement: session friction log → owner-reviewed skill changes (no per-machine forks)
 └── readout/                     ← Phase 3 one-pager template
 ```
 
-**CoCo (demo UI):** serve [demo-ui/](demo-ui/) (`py -m http.server 3000` or `npx serve demo-ui`) and open <http://localhost:3000/> — dataspace filter plus FAQs of pullable use cases (live Data 360 count > 0) with copyable prompts. Live MCP counts still run via the Skill in Cursor. **Chat starters:** [prompts/chat-starters.md](prompts/chat-starters.md). **Note:** Snowflake is not queried via MCP — agents return live Data 360 counts plus Snowflake validation SQL (PENDING) and Data 360 DMO / segment links.
+**Chat starters:** [prompts/chat-starters.md](prompts/chat-starters.md). **Note:** Snowflake is not queried via MCP — agents return live Data 360 counts (Stage: English + Query; Prod: English only). Do not include a Salesforce segment link on a count.
 
 ### Open items to fill before running against production
 - Exact OCL/Snowflake view / Snowflake query name → **Salesforce Data Cloud Architect**
-- Semantic-layer verification: confirm every `VERIFY` DMO/field/join in [reference/dataModel-dev.yaml](reference/dataModel-dev.yaml) → **Salesforce Data Cloud Architect**
+- Semantic-layer verification: confirm every `VERIFY` DMO/field/join in [dataModel-dev.yaml](skill/d360-segments-activations/reference/dataModel-dev.yaml) → **Salesforce Data Cloud Architect**
 - Reference segment ID → **Customer team**
 - Named governance owner + authorized users → **Customer IT**

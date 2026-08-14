@@ -12,7 +12,7 @@ Every natural-language **HCP or patient count** is answered from **Data 360** on
 Do **not** authenticate Snowflake MCP, check connector connectivity, or execute the warehouse
 query from the agent. Do **not** show a Snowflake count in the chat answer.
 
-Source inventory: [../../reference/snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md)
+Source inventory: [../reference/snowflake-stream-sources.md](../reference/snowflake-stream-sources.md)
 (and CSV). Use this file only when someone asks for warehouse validation SQL.
 
 ---
@@ -28,8 +28,8 @@ FROM DATABASE.SCHEMA.TABLE
 WHERE <same filters / person grain as the Data 360 count>;
 ```
 
-Copy-paste prompts: [../../prompts/example-prompts.md](../../prompts/example-prompts.md) ·
-[../../prompts/chat-starters.md](../../prompts/chat-starters.md).
+Copy-paste prompts: [example-prompts.md](../../prompts/example-prompts.md) ·
+[chat-starters.md](../../prompts/chat-starters.md).
 
 Still **never** return PII. Warehouse SQL is `COUNT` / `COUNT(DISTINCT …)` only.
 
@@ -39,7 +39,7 @@ Still **never** return PII. Warehouse SQL is `COUNT` / `COUNT(DISTINCT …)` onl
 
 1. Identify the **primary fact/event DMO** used in the count (e.g. Stage HQ email →
    `stg_Headquarter_Email_Engagement__dlm`).
-2. Look up that stream in [snowflake-stream-sources.md](../../reference/snowflake-stream-sources.md)
+2. Look up that stream in [snowflake-stream-sources.md](../reference/snowflake-stream-sources.md)
    by dataspace + stream/DLO family. Use `database` / `schema` / `table` (`object`).
 3. Build a Snowflake count with the **same business filters** and the same person grain
    (`COUNT(DISTINCT <person_key>)`), using source column names (often closer to the stream

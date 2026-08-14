@@ -1,7 +1,9 @@
 ---
 description: >-
-  Data 360 counts in natural English + the query. Use on every HCP/DTC count and
-  when the user starts a chat or asks what prompts to run.
+  Data 360 counts in natural English. Stage includes the Query; Prod is count
+  only. Never include a Salesforce segment link on a count. After a count, ask
+  whether to build a segment and whether it is for Email or SMS. Use on every
+  HCP/DTC count and when the user starts a chat.
 alwaysApply: true
 ---
 
@@ -21,23 +23,29 @@ Recommended first offers (one doctors/Stage + one patients/DTC), in everyday lan
 
 ## Every count answer (HCP and DTC)
 
-Answers are for **non-technical readers**. Do not show a Snowflake count, matching table,
+Answers are for **Marketers**. Do not show a Snowflake count, matching table,
 PENDING, or Delta.
 
 1. **Query Data 360 only** for the live count. Do **not** check Snowflake MCP connectivity,
    call `mcp_auth` on Snowflake, or probe the Snowflake connector.
-2. Lead with **natural English** — doctors or patients, what was asked, and the number.
+2. **Every people count anchors on Unified Individual** for the routed HCP or DTC model.
+   Resolve engagement, brand, consent, and other related DMOs through the declared IdentityLink
+   path. Never label a distinct related-DMO ID count as doctors or patients. If Unified Individual
+   or IdentityLink is empty, report 0 people and the data gap; never fall back to activity grain.
+3. Lead with **natural English** — doctors or patients, what was asked, and the number.
    Example: *There are 94,853 doctors in Stage who opened a Comirnaty headquarter email
    in the last 90 days.*
-3. Then put the **Query** — the Data 360 SQL that produced that number. Do not hide it.
-4. **Always** include a Salesforce **segment link** on every count — **pull** (Recipe A /
-   status) **and** **push** (create / update / status):
-   - Prefer a matching MarketSegment in the same dataspace
-     (`d360_segment_list` / `d360_segment_get`, or the segment you just created/updated):
-     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/r/MarketSegment/<marketSegmentId>/view`
-   - If none matches yet: still emit
-     `Data 360 segment link: N/A — no MarketSegment for this count yet` **and** the org list
-     `https://pfizer-cdp-us--cfcstage.sandbox.lightning.force.com/lightning/o/MarketSegment/list`
-   Never omit the segment-link line from a count answer.
-5. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email
+4. **Stage** (`STG_US`; also Dev / DTC): then put the **Query** — the Data 360 SQL that
+   produced that number.
+5. **Prod** (`PRD_US`): **do not** put the Query. Share the count only.
+6. **Do not** include a Salesforce **segment link** on a count answer (no MarketSegment URL,
+   no N/A list URL). Include **Open this audience** only after create / update / status of a
+   real MarketSegment.
+7. **After every Recipe A count**, ask both:
+   - *Would you like to build this as a segment?*
+   - *Is it for Email or SMS?*
+   Wait before creating. Skip “build?” only if they already asked to create this audience.
+   Skip “Email or SMS?” only if they already named the channel. Do not add these questions to
+   a status read of an existing MarketSegment.
+8. Do not invent empty-path demos (Stage profiles/consent; Dev geo/consent; DTC email
    engagement audiences).

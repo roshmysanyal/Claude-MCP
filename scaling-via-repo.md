@@ -16,8 +16,8 @@
 > sign-off required before the git model becomes the standing process.
 
 Related: [skill/d360-segments-activations/SKILL.md](skill/d360-segments-activations/SKILL.md) ·
-[reference/dataModel-dev.yaml](reference/dataModel-dev.yaml) ·
-[reference/before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md) ·
+[dataModel-dev.yaml](skill/d360-segments-activations/reference/dataModel-dev.yaml) ·
+[before-using-and-on-data-model-changes.md](skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md) ·
 [setup/03-connect-claude.md](setup/03-connect-claude.md)
 
 ---
@@ -81,7 +81,7 @@ flowchart LR
    only the architect flips it to `verified`). The PR is the review gate and the audit trail — the
    same governance bar the runbook already sets for `SKILL.md` and `dataModel-dev.yaml`. This is exactly
    the loop already described in
-   [before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md);
+   [before-using-and-on-data-model-changes.md](skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md);
    this doc just makes it the *distribution* mechanism too.
 2. **Publish on merge.** Merging to `main` (optionally tagging a release) produces the single
    canonical version everyone reads. Nobody edits their own copy; they consume the released one.
@@ -101,8 +101,8 @@ Keeping this boundary crisp is what lets one repo serve everyone without leaking
 | Shared (lives in the repo, one canonical copy) | Local / per-user (never in the shared contract) |
 |---|---|
 | `SKILL.md` and the recipes/guardrails | MCP connection config (server URL, ECA `CLIENT_ID`) |
-| `reference/dataModel-dev.yaml` (semantic layer) | Per-user OAuth tokens (PKCE login) |
-| `reference/*.md`, `validation/*` | Secrets (`.env`) — already gitignored |
+| `skill/.../reference/dataModel-dev.yaml` (semantic layer) | Per-user OAuth tokens (PKCE login) |
+| `skill/.../reference/*.md`, `skill/.../validation/*` | Secrets (`.env`) — already gitignored |
 | The thin per-tool loader shim | Data 360 license + permission set (identity/access) |
 
 Per-user identity staying local is a **feature**: it preserves native per-user FLS / sharing /
@@ -178,7 +178,7 @@ above). Keep using the copy step in
    Gemini), so a merged change auto-reaches every user next session.
 3. Keep the **author → PR → architect-verify → merge** loop as the *only* way the contract changes
    (already the governance model in
-   [before-using-and-on-data-model-changes.md](reference/before-using-and-on-data-model-changes.md)).
+   [before-using-and-on-data-model-changes.md](skill/d360-segments-activations/reference/before-using-and-on-data-model-changes.md)).
 4. When the user base grows, evaluate **rung 3** — serving `dataModel-dev.yaml` from a single location we
    control (a pinned raw URL, an object store, or a resource-serving MCP server we run) so there are
    zero local copies to drift. Today this shouldn't be the D360 MCP server — it exposes only the

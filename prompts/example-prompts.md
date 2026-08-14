@@ -3,7 +3,7 @@
 Natural-language prompts that return a **non-zero** Data 360 count today.
 Paste as-is with the `d360-segments-activations` Skill and `data360` MCP connected.
 
-**Inventory date:** 2026-08-12 · Full DMO matrix: [../reference/dmos-with-data-stage-org.md](../reference/dmos-with-data-stage-org.md)  
+**Inventory date:** 2026-08-12 · Full DMO matrix: [dmos-with-data-stage-org.md](../skill/d360-segments-activations/reference/dmos-with-data-stage-org.md)  
 **Chat starters (paste first):** [chat-starters.md](chat-starters.md)
 
 > **Note:** Query Data 360 only. Answer in everyday English, then put the Query. Do not include a Snowflake count, matching table, PENDING, or Delta.

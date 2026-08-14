@@ -13,19 +13,19 @@ for the schema:
 |---|---|
 | **this file** (`feedback/session-log.md`) | *Notebook* — raw, per-session friction captured as it happens. Noisy on purpose. |
 | [feedback/improvement-backlog.md](improvement-backlog.md) | *Triage surface* — the owner clusters recurring signals into concrete, decided skill changes. |
-| [skill/…/SKILL.md](../skill/d360-segments-activations/SKILL.md) + [reference/dataModel.yaml](../reference/dataModel.yaml) | *The governed skill* — the only thing that changes agent behavior. Changed **only** by the owner, via the git loop. |
+| [skill/…/SKILL.md](../SKILL.md) + [reference/dataModel-dev.yaml](../reference/dataModel-dev.yaml) | *The governed skill* — the only thing that changes agent behavior. Changed **only** by the owner, via the git loop. |
 
 ---
 
 ## The boundary that matters (why this exists)
 
-The whole point of [scaling-via-repo.md](../scaling-via-repo.md) is **one canonical skill, no
+The whole point of [scaling-via-repo.md](../../scaling-via-repo.md) is **one canonical skill, no
 per-machine forks.** Session logging must not undermine that:
 
 | Capture surface (may be local / per-user, then collected) | The governed skill (one canonical copy, owner-only) |
 |---|---|
 | This log — friction notes from a session | `SKILL.md`, recipes, guardrails |
-| The improvement backlog (until a change is decided) | `dataModel.yaml` semantic layer |
+| The improvement backlog (until a change is decided) | `dataModel-dev.yaml` semantic layer |
 
 **Logs flow to the owner; only the owner edits the skill.** A user's session never rewrites the
 skill on their own machine or stashes lessons in per-tool "memory" — that is exactly the drift
@@ -40,12 +40,12 @@ Set by the **skill owner**, mirroring the Discovery-mode toggle in `SKILL.md`. T
 two-phase behavior the POC calls for:
 
 - **`self-tune`** — *Phase 0 build / POC hardening only.* The agent both logs here **and** may
-  propose concrete edits to the governed files (`SKILL.md`, `dataModel.yaml`) — but only through the
+  propose concrete edits to the governed files (`SKILL.md`, `dataModel-dev.yaml`) — but only through the
   **author → PR → owner-review → merge** loop into the shared repo, tracked in
   [improvement-backlog.md](improvement-backlog.md). Never as silent local memory or a per-machine
   copy. This is the "self-learn and adjust while we build" phase.
 - **`log-only`** — *default once the skill is in users' hands (production).* The agent **only**
-  appends to this notebook. It does **not** edit `SKILL.md` or `dataModel.yaml`. The skill owner
+  appends to this notebook. It does **not** edit `SKILL.md` or `dataModel-dev.yaml`. The skill owner
   reviews the logs and makes the single canonical adjustment. This is what prevents "a different
   version of the skill on everyone's machine."
 
@@ -120,7 +120,7 @@ two-phase behavior the POC calls for:
 1. On a cadence (weekly during the POC), read new entries here.
 2. Cluster by category + topic. Repeats = signal.
 3. Promote the real ones into [improvement-backlog.md](improvement-backlog.md) as decided changes.
-4. Make the **one canonical edit** to `SKILL.md` / `dataModel.yaml` via a PR (audit trail), then set
+4. Make the **one canonical edit** to `SKILL.md` / `dataModel-dev.yaml` via a PR (audit trail), then set
    the entry's **Status** to `fixed in <PR>`. Everyone picks it up on their next `git pull` — one
    change, every user, no drift.
 

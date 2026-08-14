@@ -3,7 +3,7 @@
 **Activation is the final push step**: it takes a *published* segment and sends its membership to an
 **activation target** (SFMC, Data Cloud, S3, SFTP, …). This is the "wire the segment to the target"
 half of the Skill's Recipe B (build → publish → validate → **activate**). It shares the semantic
-layer ([dataModel.yaml](dataModel.yaml)) only for the *activate-on* entity's API name; everything
+layer ([dataModel-dev.yaml](dataModel-dev.yaml)) only for the *activate-on* entity's API name; everything
 else is activation-specific config.
 
 > **Governance:** activation is a **production write**. Confirm the definition with the user and get
@@ -55,14 +55,20 @@ Capture the target's **`name`** (this is what the activation references as
 
 ### Read whether a segment is activated
 
-1. Read the segment and capture its exact market-segment/segment ID.
-2. `d360_activation_list`; match bindings that reference that ID.
-3. `d360_activation_get` for each match; report activation ID/name, target, returned status,
-   refresh type, last run/success, and error when returned.
-4. Classify **ACTIVATED**, **CONFIGURED, NOT ACTIVE**, **NOT ACTIVATED**, or **UNKNOWN**.
+Activation status must be derived from an **Activation binding**, not from the segment's publish
+status and not from an ACTIVE target:
 
-Never infer activation from a published/ACTIVE segment or an ACTIVE target. Activation requires a
-matching activation binding with an active/successful returned status.
+1. Read the segment (`d360_segment_get`) and capture its `marketSegmentId` / segment ID.
+2. List activations (`d360_activation_list`) and match records that reference that exact segment.
+3. Fetch every match (`d360_activation_get`) and report activation ID/name, target, returned status,
+   refresh type, last run/success timestamp, and returned error when present.
+4. Classify:
+   - **ACTIVATED** — at least one matching binding is active/successful.
+   - **CONFIGURED, NOT ACTIVE** — binding exists but is draft/inactive/failed.
+   - **NOT ACTIVATED** — no binding references the segment.
+   - **UNKNOWN** — insufficient API evidence; state the access/API reason.
+
+Never infer **ACTIVATED** merely because the segment itself is `ACTIVE`/published.
 
 **If the list is empty, stop.** There is no target to activate to — ask a human to create one (or, if
 approved, see Step 0). Do not silently create a target to unblock yourself.
@@ -128,7 +134,7 @@ Get `marketSegmentId` from the segment you published (`d360_segment_list` / `d36
   *"QueryPath for ActivateOn and SegmentOn should be empty for same DMO."*
 - Provide a `queryPathConfig` join path **only** when activating on a **different, related** DMO
   (e.g. segment on `UnifiedIndividual`, activate on a related contact-point DMO). The path uses the
-  same declared relationships as [dataModel.yaml](dataModel.yaml) — never invent a join.
+  same declared relationships as [dataModel-dev.yaml](dataModel-dev.yaml) — never invent a join.
 
 ### `refreshType` / `activationType` enums
 

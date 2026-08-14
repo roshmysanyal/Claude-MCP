@@ -1,7 +1,11 @@
 # Run the OCL/Snowflake Benchmark
 
-This produces the **source-of-truth count** the Data 360 result is validated against. Run it
-independently of Claude/D360, in the **same refresh window** as the D360 count.
+This produces the **formal OCL source-of-truth count** for the Phase 1 **"validated"** label.
+Run it independently of Claude/D360, in the **same refresh window** as the D360 count.
+
+For the **required dual report on every count** (D360 DMO vs the immediate Snowflake
+data-stream table), see [d360-vs-snowflake-stream.md](d360-vs-snowflake-stream.md) first —
+that parity step is separate from this OCL benchmark.
 
 > **Owner:** the Salesforce Data Cloud Architect confirms the exact OCL/Snowflake view/column names in
 > [ocl-benchmark.sql](ocl-benchmark.sql) before Phase 1. If the OCL/Snowflake stream is unavailable or not

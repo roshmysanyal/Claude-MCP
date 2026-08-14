@@ -6,10 +6,10 @@ business **concept** to its counterpart on both sides so the two counts are prov
 same thing — and so any residual delta is *explainable* rather than a surprise.
 
 This is the OCL/Snowflake half of the semantic layer. The D360 half lives in
-[dataModel.yaml](dataModel.yaml); keep the two in sync.
+[dataModel-dev.yaml](dataModel-dev.yaml); keep the two in sync.
 
 > **Status:** DRAFT / iterating. The **D360 side** below is seeded from the live Development
-> (DEV-US) dataspace via MCP (2026-08-06) — see [dataModel.yaml](dataModel.yaml). The
+> (DEV-US) dataspace via MCP (2026-08-06) — see [dataModel-dev.yaml](dataModel-dev.yaml). The
 > **OCL/Snowflake side is `<PLACEHOLDER>`** until the Salesforce Data Cloud Architect confirms the
 > real Snowflake view/column names. Nothing here is a benchmark until the count spine and the
 > concept rows below are signed off.
@@ -28,10 +28,10 @@ the boundary.
 - **Human override + lock (still Phase 0).** The Data Cloud Architect + governance owner review the
   draft, trim it to the authorized HCP scope, correct it, and lock it — *"THESE are the objects/
   fields you may use."* Only the human-approved file is trusted. (Mirrors the `VERIFY → verified`
-  flip in [dataModel.yaml](dataModel.yaml).)
+  flip in [dataModel-dev.yaml](dataModel-dev.yaml).)
 - **Runtime — constrained.** Claude reads only the locked semantic layer; it does not go exploring
   the org. How much latitude it has is set by the **discovery-mode toggle** in
-  [../skill/d360-segments-activations/SKILL.md](../skill/d360-segments-activations/SKILL.md) (`strict` = locked model
+  [../skill/d360-segments-activations/SKILL.md](../SKILL.md) (`strict` = locked model
   only; `propose` = may draft `VERIFY` proposals for a human to confirm).
 
 So: the tool proposes, the human disposes, and runtime stays inside the human-locked boundary.
@@ -57,7 +57,7 @@ did (the gap between the two *is* a useful finding, not an error).
 
 | | Count expression | Notes |
 |---|---|---|
-| **D360 (benchmark-comparable)** | `COUNT(DISTINCT <Individual.NPI field>)` | `<VERIFY: NPI field on Individual>` — candidate: `PfizerCustomerId__c` pending architect confirmation |
+| **D360 (benchmark-comparable)** | `COUNT(DISTINCT PartyIdentification.IdentificationNumber__c)` filtered to NPI type | On `dev_PartyIdentification__dlm` via `Individual.Id__c = PartyId__c`. Type literal VERIFY — seed only has `Name__c = 'MC Subscriber Key'`. NPI is PII (`pii:true`); counts OK, never return values. |
 | **D360 (product-truth, report alongside)** | `COUNT(DISTINCT UnifiedIndividual.Id__c)` | resolved golden person (`dev_UnifiedIndividualRs1__dlm`) |
 | **OCL / Snowflake** | `COUNT(DISTINCT <OCL/Snowflake NPI column>)` | `<PLACEHOLDER>` |
 
@@ -65,11 +65,11 @@ did (the gap between the two *is* a useful finding, not an error).
 
 ## Concept crosswalk
 
-For each business concept: the D360 mapping (from `dataModel.yaml`) and the OCL/Snowflake mapping
+For each business concept: the D360 mapping (from `dataModel-dev.yaml`) and the OCL/Snowflake mapping
 (architect to fill). "Polarity" and "value map" columns exist because these are the silent
 count-breakers.
 
-| Concept | D360 side (from dataModel.yaml) | OCL / Snowflake side | Watch-outs |
+| Concept | D360 side (from dataModel-dev.yaml) | OCL / Snowflake side | Watch-outs |
 |---|---|---|---|
 | **Person / count unit** | NPI → `UnifiedIndividual.Id__c` (via identity resolution) | `<OCL/Snowflake NPI column>` in `<OCL/Snowflake HCP/Rx table>` | NULL NPIs dropped by `COUNT(DISTINCT)`; see divergence #1 |
 | **Brand** | `NBRxAggregated.Brand__c` or `HcpSegmentation.Brand__c` (not on Individual) | `<OCL/Snowflake brand column>` | value map: D360 literal vs OCL/Snowflake literal; both brand DMOs empty at seed |
@@ -155,7 +155,7 @@ a defect.
 3. **Different source feeds.** The clean match assumes `dev_NBRxAggregated__dlm` (and the website
    DMO) ingest from the *same* Snowflake tables. Different feeds or cadences add coverage/timing
    drift on top of the refresh-window gap.
-4. **Join-key correctness (D360).** `dataModel.yaml` joins `individual_has_nbrx` on
+4. **Join-key correctness (D360).** `dataModel-dev.yaml` joins `individual_has_nbrx` on
    `Individual.Id__c = NBRxAggregated.IndividualId__c`. If the true prescriber key is **NPI**,
    this join should be on the NPI field, not the source PK. VERIFY with the architect — a wrong join
    key produces a confidently-wrong count.
@@ -170,7 +170,9 @@ a defect.
 
 ## Open items for the Data Cloud Architect
 
-- [ ] Confirm NPI is the identity-resolution key, and give its **field name on `Individual`** (for the D360 `DISTINCT NPI` count) and its **column name in OCL/Snowflake**. Candidate: `PfizerCustomerId__c`.
+- [ ] Confirm NPI lives on `PartyIdentification.IdentificationNumber__c` and give the
+      exact `Name__c` / `PartyIdentificationTypeId__c` literals that mean NPI (seed only
+      has `MC Subscriber Key` / `Person Identifier`). Also give the OCL/Snowflake NPI column.
 - [ ] Confirm the NBRx→Individual join key (NPI vs source PK) — divergence #4.
 - [ ] Provide OCL/Snowflake table/column names for: HCP dimension, Rx/NBRx, web-engagement events, consent.
 - [ ] Confirm opt-in **polarity** and the exact `ContactPointConsent.ConsentStatusId__c` literals.

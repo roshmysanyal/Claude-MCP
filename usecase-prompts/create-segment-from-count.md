@@ -2,7 +2,7 @@
 
 **Count ≠ segment.** A count returns a number; a segment returns **membership**
 (SegmentOn primary keys only — never PII). See
-[../reference/creating-segments.md](../reference/creating-segments.md).
+[creating-segments.md](../skill/d360-segments-activations/reference/creating-segments.md).
 
 ---
 

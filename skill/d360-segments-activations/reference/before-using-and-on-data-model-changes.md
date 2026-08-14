@@ -1,13 +1,13 @@
 # Before Using / On Data Model Changes
 
-[dataModel.yaml](dataModel.yaml) is only as trustworthy as its `status:` flags. It ships with
+[dataModel-dev.yaml](dataModel-dev.yaml) is only as trustworthy as its `status:` flags. It ships with
 `VERIFY` placeholders that are **best guesses at the schema**, not confirmed facts. This doc is the
 procedure to (1) verify the model against the live customer org before Phase 1, and (2) keep it in sync
 when the Data 360 data model changes.
 
 > **Owner:** Salesforce Data Cloud Architect confirms every DMO, field, type, join key, and
 > cardinality. The data model is a governance artifact — the same review bar as
-> [SKILL.md](../skill/d360-segments-activations/SKILL.md) and [ocl-benchmark.sql](../validation/ocl-benchmark.sql).
+> [SKILL.md](../SKILL.md) and [ocl-benchmark.sql](../validation/ocl-benchmark.sql).
 >
 > **Split of labor:** field-level facts (`dmo`, `api_name`, `type`, `primary_key`) can be
 > **seeded and confirmed from the org** via the MCP Query family's metadata query. Relationships,
@@ -54,7 +54,7 @@ When someone asks for a count that needs a DMO/field/join the model doesn't cove
 
 1. **Discover from the org, don't invent.** Run the MCP metadata query to find the candidate DMO and
    fields; read the real `api_name` and `type`.
-2. **Add it as `VERIFY`.** Append the new entity/field/relationship to `dataModel.yaml` with
+2. **Add it as `VERIFY`.** Append the new entity/field/relationship to `dataModel-dev.yaml` with
    `status: VERIFY` and a `desc`. This captures the person's context in the shared model instead of
    in one chat.
 3. **Answer, with a note.** The requester gets their number — a `VERIFY` mapping does not block the
@@ -81,9 +81,9 @@ Two ways to discover schema, used for different things:
   business meaning (brand, opt-in, edition, …) **and their real literal values** — exactly the
   `desc`/allowed-values context the metadata describe won't give you.
 
-**What it maps to in `dataModel.yaml`:**
+**What it maps to in `dataModel-dev.yaml`:**
 
-| `includeCriteria` JSON | `dataModel.yaml` |
+| `includeCriteria` JSON | `dataModel-dev.yaml` |
 |---|---|
 | `subject.objectApiName` | entity `dmo:` |
 | `subject.fieldApiName` | field `api_name` |
@@ -102,11 +102,11 @@ It's a **"while you're there, might as well grab it"** source, not a system of r
 - Whatever you extract still lands as `VERIFY`. Architect still signs off.
 - **No extra API cost:** Recipe B already reads the reference segment ("describe → rebuild"), so the
   same output can double as a seeding pass — harvest the object/field API names, types, and values
-  into `dataModel.yaml` (as `VERIFY`) while you're in there.
+  into `dataModel-dev.yaml` (as `VERIFY`) while you're in there.
 
 ## Sharing the model across users (single canonical copy)
 
-`dataModel.yaml` is a **single version-controlled artifact**, not a per-user file. One person
+`dataModel-dev.yaml` is a **single version-controlled artifact**, not a per-user file. One person
 verifies or proposes an entry once and everyone benefits — no one should re-populate their own copy.
 
 **Recommended loop (git-based — adopt unless a different distribution is chosen):**
@@ -116,7 +116,7 @@ verifies or proposes an entry once and everyone benefits — no one should re-po
 2. The change is committed to the shared repo (a PR/commit gives the audit trail this governance
    artifact needs — same review bar as `SKILL.md`).
 3. The Data Cloud Architect reviews, verifies against the org, and flips `VERIFY` → `verified`.
-4. Other users **pull** the updated `dataModel.yaml`. Their agent immediately uses the newly
+4. Other users **pull** the updated `dataModel-dev.yaml`. Their agent immediately uses the newly
    verified elements.
 
 > Avoid per-user local copies or storing this context in an individual's Claude/Cursor memory — it
@@ -130,7 +130,7 @@ verifies or proposes an entry once and everyone benefits — no one should re-po
 
 Re-verify the affected part of the model whenever the Data 360 model shifts. Common triggers:
 
-| Change in Data 360 | What to update in `dataModel.yaml` |
+| Change in Data 360 | What to update in `dataModel-dev.yaml` |
 |---|---|
 | New DMO / data stream mapped | Add an `entity`; add `relationships` + a `path`; mark `VERIFY` until confirmed |
 | DMO or field renamed / removed | Update the `dmo:`/field API name; fix any journey referencing it |
