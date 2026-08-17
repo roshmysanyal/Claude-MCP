@@ -28,6 +28,8 @@ PENDING, or Delta.
 
 1. **Query Data 360 only** for the live count. Do **not** check Snowflake MCP connectivity,
    call `mcp_auth` on Snowflake, or probe the Snowflake connector.
+1a. **Never ask which environment** — on a pull or a push. Doctors run in `STG_US`, patients in
+   `DTC`, unless the user names a different dataspace themselves.
 2. **Every people count anchors on Unified Individual** for the routed HCP or DTC model.
    Resolve engagement, brand, consent, and other related DMOs through the declared IdentityLink
    path. Never label a distinct related-DMO ID count as doctors or patients. If Unified Individual
