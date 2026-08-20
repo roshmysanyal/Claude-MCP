@@ -115,7 +115,9 @@ entity model and operations below — no brand allowlist.
   for the live count.** Do **not** authenticate Snowflake MCP, check connector connectivity, or
   execute the warehouse query from the agent.
   - Lead with everyday language (*doctors* / *patients*) and the number.
-  - **Stage** (`STG_US`; also Dev / DTC): then put the **Query** (the Data 360 SQL).
+  - **Stage** (`STG_US`; also Dev / DTC): then introduce the Query with
+    *Since the counts are getting pulled from Stage, here is the reference query*
+    and the Data 360 SQL.
   - **Prod** (`PRD_US`): **do not** put the Query — count only.
   - **Do not** include a Salesforce **segment link** on a count answer.
   - Do **not** show a Snowflake count, matching table, PENDING, Delta, or dual-report.
@@ -199,7 +201,8 @@ rules below) — not on Recipe S status or after a create/update.
 ```text
 There are <N> <doctors|patients> in Stage who <plain-English criteria>.
 
-**Query**
+Since the counts are getting pulled from Stage, here is the reference query
+
 <the Data 360 SQL you ran>
 
 Would you like to build this as a segment? Is it for Email or SMS?
@@ -218,7 +221,8 @@ Example (Stage):
 ```text
 There are <N> doctors in Stage who opened a Comirnaty headquarter email in the last 90 days.
 
-**Query**
+Since the counts are getting pulled from Stage, here is the reference query
+
 SELECT COUNT(DISTINCT ui."Id__c")
 FROM "stg_UnifiedIndividual__dlm" ui
 WHERE ui."Id__c" IN (

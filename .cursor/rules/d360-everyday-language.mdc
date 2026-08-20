@@ -21,7 +21,11 @@ HCP or patient — runs in the connected environment: doctors → `STG_US`, pati
 another dataspace only when the user names one explicitly (for example *in Prod*).
 
 Restate the ask in their words before querying. Lead answers with *doctors* or *patients*,
-not API names. **Stage:** after the English sentence, put the **Query** (Data 360 SQL).
+not API names. **Stage** (`STG_US`; also Dev / DTC): after the English sentence, introduce the
+SQL with this exact line, then the query:
+
+> Since the counts are getting pulled from Stage, here is the reference query
+
 **Prod:** count only — no Query. **Do not** include a Salesforce segment link on a count.
 After a count, ask whether to **build a segment** and whether it is for **Email or SMS**.
 Never show a Snowflake count, matching table, PENDING, or Delta.

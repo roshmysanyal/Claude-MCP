@@ -37,8 +37,10 @@ PENDING, or Delta.
 3. Lead with **natural English** — doctors or patients, what was asked, and the number.
    Example: *There are 94,853 doctors in Stage who opened a Comirnaty headquarter email
    in the last 90 days.*
-4. **Stage** (`STG_US`; also Dev / DTC): then put the **Query** — the Data 360 SQL that
-   produced that number.
+4. **Stage** (`STG_US`; also Dev / DTC): then introduce the **Query** with this exact line,
+   then the Data 360 SQL that produced that number:
+
+   > Since the counts are getting pulled from Stage, here is the reference query
 5. **Prod** (`PRD_US`): **do not** put the Query. Share the count only.
 6. **Do not** include a Salesforce **segment link** on a count answer (no MarketSegment URL,
    no N/A list URL). Include **Open this audience** only after create / update / status of a
