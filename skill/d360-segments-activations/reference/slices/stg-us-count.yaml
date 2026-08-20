@@ -1,0 +1,27 @@
+# Count hot-path slice for doctors (STG_US). Source of truth for new fields:
+# ../dataModel-stg-us.yaml — keep this file in sync when engagement keys change.
+# COUNT.md: read this instead of the full YAML. Grep the full file only if the
+# concept is not listed here.
+
+dataspace: STG_US
+anchor_dmo: stg_UnifiedIndividual__dlm
+anchor_count_key: Id__c
+identity_link_dmo: stg_IndividualIdentityLink__dlm
+identity_unified_key: UnifiedRecordId__c
+identity_source_key: SourceRecordId__c
+individual_dmo: stg_Individual__dlm
+individual_pk: Id__c
+
+# Unified.Id__c IN (link.UnifiedRecordId__c WHERE SourceRecordId__c IN (related FK))
+related:
+  HeadquarterEmailEngagement:
+    dmo: stg_Headquarter_Email_Engagement__dlm
+    fk: IndividualId__c
+    brand_field: Brand__c
+    action_field: EngagementChannelAction__c
+    opened_literal: OPENED
+    datetime_field: EngagementDateTime__c
+    status: VERIFY
+
+do_not_use_as_populated:
+  - Stage profile/consent empty paths as if they had members

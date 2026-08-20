@@ -181,6 +181,6 @@ If the grain relationship is unclear, stop and ask the architect — never guess
 
 ## Related
 
-- Skill Recipes A / B and Guardrails: [../skill/d360-segments-activations/SKILL.md](../SKILL.md)
+- Skill recipes: [COUNT.md](../COUNT.md), [CREATE.md](../CREATE.md), [STATUS.md](../STATUS.md), [PUBLISH.md](../PUBLISH.md)
 - Segment SQL rules and worked examples: [creating-segments.md](creating-segments.md)
 - Activation / audience DMO receipt: [creating-activations.md](creating-activations.md)

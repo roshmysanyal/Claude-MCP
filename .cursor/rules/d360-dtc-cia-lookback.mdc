@@ -7,29 +7,12 @@ alwaysApply: true
 
 # DTC CIA ask + 2-year lookback
 
-## CIA Consumer Marketable Email (DTC / patient / D2C only)
-
-Whenever you **build** or **update** a patient/consumer/D2C/DTC segment, **ask before writing:**
+Whenever you **build** or **update** a patient segment, **ask before writing:**
 
 > Should this patient audience also be limited to CIA Consumer Marketable Email?
 
-- Do **not** nest CIA silently and do **not** skip it silently.
-- **Yes** → nest CIA first via `DTC_UnifiedIndividualDtc_SM_1780343389__dlm`
-  (`Segment_Id__c LIKE '1sgWC00000009cn%'`), then the other DMOs. SegmentOn
-  `DTC_UnifiedIndividualDtc__dlm`.
-- **No** → omit the CIA nest; still SegmentOn Unified Individual.
-- If the user said yes and the CIA membership DMO is empty, surface the gap and
-  ask before any email+consent fallback.
+Do not nest or skip CIA silently. Nest details: [CREATE.md](../../skill/d360-segments-activations/CREATE.md) CIA section.
 
-This does **not** apply to HCP segments in `Development` / `STG_US` / `PRD_US`.
+Create/update with `lookbackPeriod: "P2Y"`. If the definition is not `P2Y`, update it before publish. See [PUBLISH.md](../../skill/d360-segments-activations/PUBLISH.md).
 
-## Lookback / publish (every segment, HCP and DTC)
-
-- Create and update with `lookbackPeriod: "P2Y"`.
-- **Every publish uses a 2-year lookback.** If the definition is not `P2Y`,
-  update it to `P2Y` before `d360_segment_publish`.
-- Never publish with `P90D`, `P3Y`, or any other window.
-- Date filters in SQL (for example 36 months) stay as written; lookback
-  metadata is still `P2Y`.
-
-Details: `skill/d360-segments-activations/SKILL.md` Recipe B CIA section and Recipe P.
+Does **not** apply to HCP segments. CIA is **not** part of a count.

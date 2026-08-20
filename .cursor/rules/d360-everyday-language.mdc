@@ -1,47 +1,21 @@
 ---
 description: >-
-  Everyday language routing: doctors = HCP, patients/consumers = DTC. Answer in
-  the same general language the user used.
+  Everyday language routing: doctors = Stage HCP, patients = DTC. One progress
+  line, then work silently.
 alwaysApply: true
 ---
 
 # Everyday language (doctors vs patients)
 
-Users ask in **general language**. Do not require DMO names, dataspace codes, or “HCP / DTC”.
-Saying **patients** is enough — route and query without asking them to name DTC.
-
 | They say | Route |
 | --- | --- |
-| **doctors**, physicians, HCPs, US customers | HCP → **`STG_US` automatically** — do **not** ask Dev / Stage / Prod |
-| **patients**, consumers | **`DTC` automatically** — do **not** ask HCP vs DTC, and do **not** ask which dataspace |
+| **doctors**, physicians, HCPs, US customers | **`STG_US`** — do not ask Dev / Stage / Prod |
+| **patients**, consumers | **`DTC`** — do not ask HCP vs DTC |
 | people / customers / audience (no noun) | Ask **“Doctors or patients?”** only |
 
-**Never ask which environment.** Every count and every segment create / update — pull or push,
-HCP or patient — runs in the connected environment: doctors → `STG_US`, patients → `DTC`. Use
-another dataspace only when the user names one explicitly (for example *in Prod*).
+Never ask which environment unless they name one (*in Prod*).
 
-Restate the ask in their words before querying. Lead answers with *doctors* or *patients*,
-not API names. **Stage** (`STG_US`; also Dev / DTC): after the English sentence, introduce the
-SQL with this exact line, then the query:
+One plain-English progress line, then work silently. Do not mention skill files, schemas, or SQL in progress text.
 
-> Since the counts are getting pulled from Stage, here is the reference query
-
-**Prod:** count only — no Query. **Do not** include a Salesforce segment link on a count.
-After a count, ask whether to **build a segment** and whether it is for **Email or SMS**.
-Never show a Snowflake count, matching table, PENDING, or Delta.
-
-**Progress / status lines (while working):** write **one** plain-English line at the start that
-says what you are checking — then work silently until the answer. Do **not** narrate the steps
-(reading skill files, checking the data model, running the count) as separate lines. Do **not**
-mention skill files, schemas, join paths, DMOs, dataspace codes, IdentityLink, Unified
-Individual, or SQL in progress text.
-
-Prefer a single line such as *Checking how many patients have a Premarin consent preference set
-to opted in.* Avoid step-by-step lines such as *Checking the patient data model for Premarin
-consent fields.* followed by *Running the patient count…*
-
-A retry or a query fix stays silent, or at most *Still working on that count.* — never
-*retrying with a corrected payload* or *checking the count SQL*.
-
-Patient **segment create/update:** still ask CIA (see `d360-dtc-cia-lookback.mdc`).
-Every publish uses lookback **P2Y**.
+Count answers and Query intro: [COUNT.md](../../skill/d360-segments-activations/COUNT.md).
+Patient create/update: ask CIA ([CREATE.md](../../skill/d360-segments-activations/CREATE.md)). Every publish uses lookback **P2Y**.

@@ -54,6 +54,7 @@ Pre-development checklist. Fill in owners/values before kickoff.
 2. **Activate the hosted Data 360 MCP server** → [setup/01-activate-mcp-server.md](setup/01-activate-mcp-server.md)
 3. **Set up authentication (External Client App + per-user OAuth)** → [setup/02-auth-setup.md](setup/02-auth-setup.md)
 4. **Connect your client (Cursor / Claude on Bedrock)** → [setup/03-connect-claude.md](setup/03-connect-claude.md)
+4a. **Optional — Cursor CLI (same skill + MCP in the terminal)** → [setup/06-cursor-cli.md](setup/06-cursor-cli.md)
 5. **Share with other users (Cursor vs Claude checklist)** → [setup/05-share-with-users-cursor-claude.md](setup/05-share-with-users-cursor-claude.md)
 6. **Install the governed Skill** → copy [skill/d360-segments-activations/](skill/d360-segments-activations/) into your Claude skills directory; have the governance owner review it.
 7. **Confirm connectivity:** in Claude, ask it to run the MCP `search` tool for `"segment"` and `"query"` — you should get back Data 360 operation names. This proves the server is wired up.
@@ -132,8 +133,8 @@ customer-d360-poc/
 ├── scaling-via-repo.md          ← PROPOSED: how one skill/semantic-layer update reaches every user (tool-agnostic)
 ├── setup/                       ← 00 provision · 01 MCP · 02 auth · 03 connect · 05 share Cursor/Claude
 ├── skill/d360-segments-activations/
-│   ├── SKILL.md                 ← the governed Claude Skill
-│   ├── reference/               ← semantic layer: DMO/field/join models + how-to-use / verify docs
+│   ├── COUNT.md / CREATE.md / STATUS.md / PUBLISH.md  ← recipes (SKILL.md is the index)
+│   ├── reference/               ← semantic layer + slices/ for first-ask counts
 │   ├── validation/              ← OCL/Snowflake benchmark + compare procedure (+ stream-source dual report)
 │   └── feedback/                ← session friction log → owner-reviewed skill changes (no per-machine forks)
 ├── prompts/                     ← example marketer prompts + chat-starters.md (POC Phase 1/2)

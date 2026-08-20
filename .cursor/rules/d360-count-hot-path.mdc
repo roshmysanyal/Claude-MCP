@@ -1,0 +1,18 @@
+---
+description: >-
+  First-ask counts use COUNT.md plus a YAML slice. Do not load CREATE, STATUS,
+  PUBLISH, or the full skill unless the user is creating, publishing, activating,
+  or checking status.
+alwaysApply: true
+---
+
+# Count hot path
+
+When the user asks **how many** doctors or patients (a count only):
+
+1. Read [skill/d360-segments-activations/COUNT.md](../../skill/d360-segments-activations/COUNT.md) if it is not already in this thread.
+2. Do **not** read CREATE.md, STATUS.md, PUBLISH.md, or [SKILL.md](../../skill/d360-segments-activations/SKILL.md) for that count.
+3. Load only the YAML slice COUNT.md names (`reference/slices/dtc-count.yaml` or `stg-us-count.yaml`).
+4. Run `d360_query_sql` with dataspace + SQL. Skip `search` and `payload_examples` unless execute fails.
+
+When they ask to **build / update**, open CREATE.md. **Status** → STATUS.md. **Publish / activate** → PUBLISH.md.
