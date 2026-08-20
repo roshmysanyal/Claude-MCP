@@ -11,6 +11,7 @@ Related:
 - [02-auth-setup.md](02-auth-setup.md) — External Client App + OAuth callbacks
 - [03-connect-claude.md](03-connect-claude.md) — client connect + Skill install
 - [mcp-config.example.json](mcp-config.example.json) — Cursor MCP template
+- [06-cursor-cli.md](06-cursor-cli.md) — Cursor Agent CLI (`agent`) on this repo
 - [../scaling-via-repo.md](../scaling-via-repo.md) — how skill/semantic layer stays in sync
 
 ---
@@ -138,6 +139,7 @@ apply automatically.
 | Model | Use whatever your org allows; MCP auth is independent of the model |
 | Snowflake MCP | **Not required** for counts — query Data 360 only; leave Snowflake as validation SQL **PENDING** |
 | Starter prompts | [../prompts/chat-starters.md](../prompts/chat-starters.md) |
+| Cursor CLI | Same repo: [06-cursor-cli.md](06-cursor-cli.md) (`.\scripts\d360-agent.ps1`) |
 
 ### 4. Verify
 
